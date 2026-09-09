@@ -51,8 +51,9 @@
     let lfoGainNode = null; 
     let masterGain = null;
     let isPlayingSound = false;
+    let isPurring = false; // ゴロゴロ中かどうかのフラグ
 
-    // --- 単発の可愛い鳴き声関数（完全な単発保証） ---
+    // --- 単発の可愛い鳴き声関数 ---
     async function playCuteSound() {
       if (!globalAudioContext || isPlayingSound) return;
       isPlayingSound = true;
@@ -81,10 +82,10 @@
       oscillator.start(now);
       oscillator.stop(now + 0.21);
 
-      // 音の長さ（約0.21秒）より長くロックをかけ、絶対に連続発火させない
+      // 鳴き終わったら少し余裕を持たせてフラグを解除
       setTimeout(() => {
         isPlayingSound = false;
-      }, 400);
+      }, 500);
     }
 
     function setEmotion(emotion) {
@@ -113,6 +114,7 @@
     function startPurr() {
       if (!globalAudioContext || purrOscillator) return;
       
+      isPurring = true; // ゴロゴロ中フラグをON（マイクの誤反応を防止）
       const now = globalAudioContext.currentTime;
 
       purrOscillator = globalAudioContext.createOscillator();
@@ -184,7 +186,10 @@
           if (oldLfoOsc) oldLfoOsc.disconnect();
           if (oldMasterGain) oldMasterGain.disconnect();
           if (oldLfoGain) oldLfoGain.disconnect();
+          isPurring = false; // 音が完全に消えてからフラグを解除
         }, (totalFadeOutTime + 0.1) * 1000);
+      } else {
+        isPurring = false;
       }
     }
 
@@ -274,7 +279,9 @@
           playCuteSound();
         }, 400);
 
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+          audio: { echoCancellation: true, noiseSuppression: true } 
+        });
         let battery = null;
         if ('getBattery' in navigator) {
           battery = await navigator.getBattery();
@@ -288,8 +295,8 @@
         const dataArray = new Uint8Array(analyser.frequencyBinCount);
 
         setInterval(() => {
-          // すでにhappy（笑顔）またはattention（見開き中）のときは環境音による上書きをしない
-          if (currentEmotion === 'happy' || currentEmotion === 'attention') return;
+          // 鳴き声再生中、ゴロゴロ中、またはhappy/attention状態のときはマイク監視をスキップ
+          if (isPlayingSound || isPurring || currentEmotion === 'happy' || currentEmotion === 'attention') return;
 
           const hour = new Date().getHours();
           analyser.getByteFrequencyData(dataArray);
@@ -298,7 +305,6 @@
           if (volume > 50) {
             setEmotion('attention');
             setTimeout(() => { 
-              // 3秒後に、もしまだattentionのままならnormalに戻す
               if(currentEmotion === 'attention') setEmotion('normal'); 
             }, 3000);
           } else if (battery && battery.charging) {
