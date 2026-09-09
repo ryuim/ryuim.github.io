@@ -55,7 +55,12 @@
     function playCuteSound(delay = 0) {
       if (!globalAudioContext) return;
       
-      setTimeout(() => {
+      setTimeout(async () => {
+        // AudioContextが一時停止していたら再開させる
+        if (globalAudioContext.state === 'suspended') {
+          await globalAudioContext.resume();
+        }
+
         const audioCtx = globalAudioContext;
         const oscillator = audioCtx.createOscillator();
         const gainNode = audioCtx.createGain();
@@ -183,7 +188,7 @@
     let moveCount = 0;
     let petTimer = null;
     let lastEventTime = 0;
-    let hasPlayedPurrSound = false; // ぐるる前の鳴き声制御用
+    let hasPlayedPurrSound = false;
 
     function handlePet(e) {
       const now = Date.now();
@@ -198,7 +203,7 @@
       }
 
       if (moveCount >= 35) {
-        // ぐるる...が始まる直前に1回鳴く（最初の1回だけ）
+        // ぐるる...が始まる前に1回鳴く
         if (!hasPlayedPurrSound) {
           playCuteSound(0);
           hasPlayedPurrSound = true;
@@ -213,7 +218,7 @@
         }
         stopPurr();
         moveCount = 0;
-        hasPlayedPurrSound = false; // リセット
+        hasPlayedPurrSound = false;
       }, 1000);
     }
 
@@ -250,14 +255,18 @@
       face.classList.add('flex');
 
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        // 音響システムの準備
         globalAudioContext = new (window.AudioContext || window.webkitAudioContext)();
-        
-        // 起床時にパチクリと、2回連続で鳴き声を出す（0秒目と0.35秒後）
-        playWakeUpBlink();
-        playCuteSound(0);
-        playCuteSound(350);
+        if (globalAudioContext.state === 'suspended') {
+          await globalAudioContext.resume();
+        }
 
+        // 起床時のパチクリと、2回連続の鳴き声
+        playWakeUpBlink();
+        playCuteSound(100);
+        playCuteSound(450);
+
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         let battery = null;
         if ('getBattery' in navigator) {
           battery = await navigator.getBattery();
@@ -278,7 +287,7 @@
           const volume = Math.max(...dataArray);
 
           if (volume > 50) {
-            setEmotion('attention'); // ここで自動的に鳴き声が1回鳴ります
+            setEmotion('attention');
             setTimeout(() => { if(currentEmotion === 'attention') setEmotion('normal') }, 3000);
           } else if (battery && battery.charging) {
             setEmotion('relax');
