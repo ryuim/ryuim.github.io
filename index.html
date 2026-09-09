@@ -70,7 +70,8 @@
       // 低周波のノコギリ波を生成
       purrOscillator = globalAudioContext.createOscillator();
       purrOscillator.type = 'sawtooth';
-      purrOscillator.frequency.value = 35; // 猫の喉鳴りに近い約35Hz
+      //purrOscillator.frequency.value = 35; // 猫の喉鳴りに近い約35Hz
+      purrOscillator.frequency.value = 80; 
 
       purrGain = globalAudioContext.createGain();
       purrGain.gain.value = 0.8;
@@ -78,7 +79,8 @@
       // 高音をカットして「くぐもった振動音」にする
       const filter = globalAudioContext.createBiquadFilter();
       filter.type = 'lowpass';
-      filter.frequency.value = 200; 
+      //filter.frequency.value = 200; 
+      filter.frequency.value = 400; 
 
       purrOscillator.connect(filter);
       filter.connect(purrGain);
