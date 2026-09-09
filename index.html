@@ -44,9 +44,9 @@
     let currentEmotion = 'normal';
     let globalAudioContext = null;
     let purrOscillator = null;
+    let lfoOscillator = null; // リズム用
     let purrGain = null;
 
-    // --- 感情の切り替え ---
     function setEmotion(emotion) {
       if (currentEmotion === emotion) return;
       currentEmotion = emotion;
@@ -63,35 +63,47 @@
       }
     }
 
-    // --- ゴロゴロ音（グルル）の合成エンジン ---
+    // --- ゴロゴロ音（リズム付き）の合成エンジン ---
     function startPurr() {
       if (!globalAudioContext || purrOscillator) return;
       
-      // 低周波のノコギリ波を生成
+      // 基本の音（聞こえる高さの80Hz）
       purrOscillator = globalAudioContext.createOscillator();
       purrOscillator.type = 'sawtooth';
-      //purrOscillator.frequency.value = 35; // 猫の喉鳴りに近い約35Hz
-      purrOscillator.frequency.value = 80; 
+      purrOscillator.frequency.value = 80;
 
+      // 音量調整
       purrGain = globalAudioContext.createGain();
-      purrGain.gain.value = 0.8;
+      purrGain.gain.value = 0.5;
 
-      // 高音をカットして「くぐもった振動音」にする
+      // 高音カット
       const filter = globalAudioContext.createBiquadFilter();
       filter.type = 'lowpass';
-      //filter.frequency.value = 200; 
       filter.frequency.value = 400; 
 
+      // ★追加：ぐるる、ぐるる…というリズムを作る波（1秒間に2回揺れる）
+      lfoOscillator = globalAudioContext.createOscillator();
+      lfoOscillator.type = 'sine';
+      lfoOscillator.frequency.value = 2.0; // ここの数字を変えるとテンポが変わります
+
+      const lfoGain = globalAudioContext.createGain();
+      lfoGain.gain.value = 0.4; // 揺れ幅
+
+      // リズムを音量（Gain）に接続
+      lfoOscillator.connect(lfoGain);
+      lfoGain.connect(purrGain.gain);
+
+      // 全体の接続
       purrOscillator.connect(filter);
       filter.connect(purrGain);
       purrGain.connect(globalAudioContext.destination);
 
       purrOscillator.start();
+      lfoOscillator.start();
     }
 
     function stopPurr() {
       if (purrGain && purrOscillator) {
-        // 0.5秒かけてふわっと音を消す
         purrGain.gain.setTargetAtTime(0, globalAudioContext.currentTime, 0.5);
         setTimeout(() => {
           if (purrOscillator) {
@@ -99,18 +111,22 @@
             purrOscillator.disconnect();
             purrOscillator = null;
           }
+          if (lfoOscillator) {
+            lfoOscillator.stop();
+            lfoOscillator.disconnect();
+            lfoOscillator = null;
+          }
         }, 500);
       }
     }
 
-    // --- 撫でるアクションの判定（3秒継続） ---
+    // --- 撫でるアクションの判定 ---
     let lastPetTime = 0;
     let continuousPetDuration = 0;
     let petTimer = null;
 
     function handlePet() {
       const now = Date.now();
-      // 指が絶え間なく動いている時間を加算
       if (now - lastPetTime < 300) {
         continuousPetDuration += (now - lastPetTime);
       } else {
@@ -118,13 +134,11 @@
       }
       lastPetTime = now;
 
-      // 3秒（3000ミリ秒）以上撫で続けたら喜ぶ
       if (continuousPetDuration > 3000 && currentEmotion !== 'happy') {
         setEmotion('happy');
         startPurr();
       }
 
-      // 撫でるのをやめてから2秒後にリセット
       clearTimeout(petTimer);
       petTimer = setTimeout(() => {
         continuousPetDuration = 0;
@@ -138,7 +152,7 @@
     face.addEventListener('touchmove', handlePet, { passive: true });
     face.addEventListener('mousemove', handlePet);
 
-    // --- 初期化処理（マイクとオーディオの起動） ---
+    // --- 初期化処理 ---
     startBtn.addEventListener('click', async () => {
       startBtn.classList.add('hidden');
       face.classList.remove('hidden');
@@ -161,7 +175,7 @@
         const dataArray = new Uint8Array(analyser.frequencyBinCount);
 
         setInterval(() => {
-          if (currentEmotion === 'happy') return; // 撫でられている間は他の感情で上書きしない
+          if (currentEmotion === 'happy') return;
 
           const hour = new Date().getHours();
           analyser.getByteFrequencyData(dataArray);
