@@ -37,7 +37,7 @@
     </svg>
   </div>
 
-  <!-- 充電中アイコン（充電時に自動で左上に表示されます） -->
+  <!-- 充電中アイコン（充電時に自動で左上に表示） -->
   <div id="charging-indicator" style="display: none;" class="absolute top-4 left-4 text-amber-500/80 bg-neutral-900/60 p-2.5 rounded-full border border-amber-500/30 backdrop-blur-sm z-30 flex items-center justify-center">
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
       <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
@@ -93,8 +93,16 @@
     let masterGain = null;
     let isPlayingSound = false;
     let isPurring = false;
-    let soundThreshold = 140;
     let lastAttentionTime = 0;
+
+    // --- ローカルストレージから保存されたしきい値を読み込み ---
+    let soundThreshold = 140;
+    const savedThreshold = localStorage.getItem('muku_threshold');
+    if (savedThreshold !== null) {
+      soundThreshold = Number(savedThreshold);
+    }
+    thresholdSlider.value = soundThreshold;
+    thresholdVal.textContent = soundThreshold;
 
     micSettingsBtn.addEventListener('click', () => {
       settingsModal.style.display = 'flex';
@@ -102,9 +110,12 @@
     closeModalBtn.addEventListener('click', () => {
       settingsModal.style.display = 'none';
     });
+
+    // --- スライダー操作時に値を更新し、localStorageに保存 ---
     thresholdSlider.addEventListener('input', (e) => {
       soundThreshold = Number(e.target.value);
       thresholdVal.textContent = soundThreshold;
+      localStorage.setItem('muku_threshold', soundThreshold);
     });
 
     // --- 単発の可愛い鳴き声関数 ---
@@ -349,7 +360,6 @@
         const dataArray = new Uint8Array(analyser.frequencyBinCount);
 
         setInterval(() => {
-          // 充電状態に応じて充電アイコンの表示を自動切り替え
           if (battery && battery.charging) {
             chargingIndicator.style.display = 'flex';
           } else {
