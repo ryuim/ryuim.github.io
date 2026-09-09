@@ -8,34 +8,35 @@
   <style>
     body { background-color: #000; color: white; margin: 0; overflow: hidden; user-select: none; touch-action: none; }
     
-    .eye { transition: all 0.7s ease-in-out; background-color: #f59e0b; border-radius: 50%; }
-    .mouth { transition: all 0.7s ease-in-out; stroke: #f59e0b; fill: transparent; stroke-width: 3; stroke-linecap: round; }
+    .eye { transition: all 0.7s ease-in-out; background-color: #f59e0b; border-radius: 50%; display: inline-block; }
+    .mouth { transition: all 0.7s ease-in-out; stroke: #f59e0b; fill: transparent; stroke-width: 4; stroke-linecap: round; }
     
-    /* 画面幅（vw）を基準にして横幅いっぱいに広げる */
-    .eye-normal { width: 30vw !important; height: 30vw !important; }
-    .eye-relax { width: 30vw !important; height: 8vw !important; margin-top: 11vw !important; }
-    .eye-attention { width: 36vw !important; height: 36vw !important; }
-    .eye-sleepy { width: 30vw !important; height: 3vw !important; margin-top: 13.5vw !important; opacity: 0.3; background-color: #b45309; }
-    .eye-happy { width: 30vw !important; height: 15vw !important; border-radius: 30vw 30vw 0 0 !important; margin-top: 7.5vw !important; }
+    /* 画面幅の25%を基本の目のサイズにする */
+    .eye-normal { width: 25vw !important; height: 25vw !important; }
+    .eye-relax { width: 25vw !important; height: 7vw !important; margin-top: 9vw !important; }
+    .eye-attention { width: 32vw !important; height: 32vw !important; }
+    .eye-sleepy { width: 25vw !important; height: 2.5vw !important; margin-top: 11.25vw !important; opacity: 0.3; background-color: #b45309; }
+    .eye-happy { width: 25vw !important; height: 12.5vw !important; border-radius: 12.5vw 12.5vw 0 0 !important; margin-top: 6.25vw !important; }
     
-    .eye-blink-closed { width: 30vw !important; height: 3vw !important; margin-top: 13.5vw !important; transition: all 0.1s !important; }
-    .eye-blink-open { width: 30vw !important; height: 30vw !important; transition: all 0.1s !important; }
+    .eye-blink-closed { width: 25vw !important; height: 2.5vw !important; margin-top: 11.25vw !important; transition: all 0.1s !important; }
+    .eye-blink-open { width: 25vw !important; height: 25vw !important; transition: all 0.1s !important; }
   </style>
 </head>
 <body class="h-screen w-screen flex items-center justify-center">
 
-  <button id="start-btn" class="px-4 py-2 border border-amber-500 text-amber-500 rounded-full hover:bg-amber-500 hover:text-black transition flex items-center justify-center">
+  <button id="start-btn" class="px-6 py-3 border border-amber-500 text-amber-500 rounded-full hover:bg-amber-500 hover:text-black transition flex items-center justify-center text-lg">
     ムクを起こす
   </button>
 
-  <div id="muku-face" class="hidden flex-col items-center justify-center gap-[10vw] w-full h-full">
-    <div class="flex gap-[15vw]">
-      <div class="flex items-center justify-center w-[30vw] h-[30vw]"><div id="eye-l" class="eye eye-normal"></div></div>
-      <div class="flex items-center justify-center w-[30vw] h-[30vw]"><div id="eye-r" class="eye eye-normal"></div></div>
+  <!-- 顔全体を横幅いっぱい(w-full)に広げる -->
+  <div id="muku-face" class="hidden flex-col items-center justify-center gap-[8vh] w-full px-[5vw]">
+    <div class="flex justify-between w-full max-w-[90vw] px-[5vw]">
+      <div class="flex items-center justify-center"><div id="eye-l" class="eye eye-normal"></div></div>
+      <div class="flex items-center justify-center"><div id="eye-r" class="eye eye-normal"></div></div>
     </div>
-    <!-- 口も画面幅の70%まで拡大 -->
-    <svg viewBox="0 0 40 20" class="w-[70vw] h-[35vw] opacity-70">
-      <path id="mouth" class="mouth" d="M 5 5 Q 12 15 20 5 Q 28 15 35 5" />
+    <!-- 口を横幅いっぱいにダイナミックに配置 -->
+    <svg viewBox="0 0 100 40" class="w-[60vw] h-[24vw] opacity-70">
+      <path id="mouth" class="mouth" d="M 10 10 Q 30 35 50 10 Q 70 35 90 10" />
     </svg>
   </div>
 
@@ -61,11 +62,11 @@
       eyeR.className = `eye eye-${emotion}`;
 
       if (emotion === 'relax') {
-        mouth.setAttribute('d', 'M 5 10 Q 12 15 20 10 Q 28 15 35 10');
+        mouth.setAttribute('d', 'M 10 20 Q 30 30 50 20 Q 70 30 90 20');
       } else if (emotion === 'happy') {
-        mouth.setAttribute('d', 'M 5 5 Q 20 20 35 5');
+        mouth.setAttribute('d', 'M 10 10 Q 50 50 90 10');
       } else {
-        mouth.setAttribute('d', 'M 5 5 Q 12 15 20 5 Q 28 15 35 5');
+        mouth.setAttribute('d', 'M 10 10 Q 30 35 50 10 Q 70 35 90 10');
       }
     }
 
