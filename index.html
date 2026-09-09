@@ -111,15 +111,10 @@
       settingsModal.style.display = 'none';
     });
 
-    // --- スライダー操作中の表示更新 ---
+    // --- スライダー操作中に即時値を更新し、localStorageへリアルタイム保存 ---
     thresholdSlider.addEventListener('input', (e) => {
       soundThreshold = Number(e.target.value);
       thresholdVal.textContent = soundThreshold;
-    });
-
-    // --- スライダー変更確定時（指を離した時・入力完了時）にlocalStorageへ保存 ---
-    thresholdSlider.addEventListener('change', (e) => {
-      soundThreshold = Number(e.target.value);
       localStorage.setItem('muku_threshold', soundThreshold);
     });
 
