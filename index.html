@@ -11,12 +11,11 @@
     .eye { transition: all 0.7s ease-in-out; background-color: #f59e0b; border-radius: 50%; }
     .mouth { transition: all 0.7s ease-in-out; stroke: #f59e0b; fill: transparent; stroke-width: 3; stroke-linecap: round; }
     
-    /* 感情ごとの目の形 */
     .eye-normal { width: 24px; height: 24px; }
     .eye-relax { width: 24px; height: 6px; margin-top: 8px; }
     .eye-attention { width: 32px; height: 32px; }
     .eye-sleepy { width: 24px; height: 2px; margin-top: 12px; opacity: 0.3; background-color: #b45309; }
-    .eye-happy { width: 24px; height: 12px; border-radius: 24px 24px 0 0; margin-top: 6px; } /* にっこり目 */
+    .eye-happy { width: 24px; height: 12px; border-radius: 24px 24px 0 0; margin-top: 6px; }
   </style>
 </head>
 <body class="h-screen w-screen flex items-center justify-center">
@@ -43,9 +42,11 @@
     const mouth = document.getElementById('mouth');
 
     let currentEmotion = 'normal';
-    let petCount = 0;
-    let petTimer = null;
+    let globalAudioContext = null;
+    let purrOscillator = null;
+    let purrGain = null;
 
+    // --- 感情の切り替え ---
     function setEmotion(emotion) {
       if (currentEmotion === emotion) return;
       currentEmotion = emotion;
@@ -54,32 +55,88 @@
       eyeR.className = `eye eye-${emotion}`;
 
       if (emotion === 'relax') {
-        mouth.setAttribute('d', 'M 5 10 Q 12 15 20 10 Q 28 15 35 10'); // ゆるんだ口
+        mouth.setAttribute('d', 'M 5 10 Q 12 15 20 10 Q 28 15 35 10');
       } else if (emotion === 'happy') {
-        mouth.setAttribute('d', 'M 5 5 Q 20 20 35 5'); // 大きく開いた口
+        mouth.setAttribute('d', 'M 5 5 Q 20 20 35 5');
       } else {
-        mouth.setAttribute('d', 'M 5 5 Q 12 15 20 5 Q 28 15 35 5'); // 通常の口
+        mouth.setAttribute('d', 'M 5 5 Q 12 15 20 5 Q 28 15 35 5');
       }
     }
 
-    // 撫でるアクションの検知
-    function handlePet() {
-      petCount++;
-      if (petCount > 10) { // 連続で指を動かしたら反応
-        setEmotion('happy');
-        clearTimeout(petTimer);
-        
-        // 撫で終わってから2秒後に通常状態へ戻す
-        petTimer = setTimeout(() => {
-          petCount = 0;
-          setEmotion('normal');
-        }, 2000);
+    // --- ゴロゴロ音（グルル）の合成エンジン ---
+    function startPurr() {
+      if (!globalAudioContext || purrOscillator) return;
+      
+      // 低周波のノコギリ波を生成
+      purrOscillator = globalAudioContext.createOscillator();
+      purrOscillator.type = 'sawtooth';
+      purrOscillator.frequency.value = 35; // 猫の喉鳴りに近い約35Hz
+
+      purrGain = globalAudioContext.createGain();
+      purrGain.gain.value = 0.8;
+
+      // 高音をカットして「くぐもった振動音」にする
+      const filter = globalAudioContext.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.value = 200; 
+
+      purrOscillator.connect(filter);
+      filter.connect(purrGain);
+      purrGain.connect(globalAudioContext.destination);
+
+      purrOscillator.start();
+    }
+
+    function stopPurr() {
+      if (purrGain && purrOscillator) {
+        // 0.5秒かけてふわっと音を消す
+        purrGain.gain.setTargetAtTime(0, globalAudioContext.currentTime, 0.5);
+        setTimeout(() => {
+          if (purrOscillator) {
+            purrOscillator.stop();
+            purrOscillator.disconnect();
+            purrOscillator = null;
+          }
+        }, 500);
       }
+    }
+
+    // --- 撫でるアクションの判定（3秒継続） ---
+    let lastPetTime = 0;
+    let continuousPetDuration = 0;
+    let petTimer = null;
+
+    function handlePet() {
+      const now = Date.now();
+      // 指が絶え間なく動いている時間を加算
+      if (now - lastPetTime < 300) {
+        continuousPetDuration += (now - lastPetTime);
+      } else {
+        continuousPetDuration = 0;
+      }
+      lastPetTime = now;
+
+      // 3秒（3000ミリ秒）以上撫で続けたら喜ぶ
+      if (continuousPetDuration > 3000 && currentEmotion !== 'happy') {
+        setEmotion('happy');
+        startPurr();
+      }
+
+      // 撫でるのをやめてから2秒後にリセット
+      clearTimeout(petTimer);
+      petTimer = setTimeout(() => {
+        continuousPetDuration = 0;
+        if (currentEmotion === 'happy') {
+          setEmotion('normal');
+          stopPurr();
+        }
+      }, 2000);
     }
 
     face.addEventListener('touchmove', handlePet, { passive: true });
-    face.addEventListener('mousemove', handlePet); // PC確認用
+    face.addEventListener('mousemove', handlePet);
 
+    // --- 初期化処理（マイクとオーディオの起動） ---
     startBtn.addEventListener('click', async () => {
       startBtn.classList.add('hidden');
       face.classList.remove('hidden');
@@ -92,22 +149,23 @@
 
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        const analyser = audioContext.createAnalyser();
-        const microphone = audioContext.createMediaStreamSource(stream);
+        globalAudioContext = new (window.AudioContext || window.webkitAudioContext)();
+        
+        const analyser = globalAudioContext.createAnalyser();
+        const microphone = globalAudioContext.createMediaStreamSource(stream);
         
         microphone.connect(analyser);
         analyser.fftSize = 256;
         const dataArray = new Uint8Array(analyser.frequencyBinCount);
 
         setInterval(() => {
-          if (currentEmotion === 'happy') return; // 喜んでいる最中は他の感情（音や時間）で上書きしない
+          if (currentEmotion === 'happy') return; // 撫でられている間は他の感情で上書きしない
 
           const hour = new Date().getHours();
           analyser.getByteFrequencyData(dataArray);
           const volume = Math.max(...dataArray);
 
-          if (volume > 50) {
+          if (volume > 70) {
             setEmotion('attention');
             setTimeout(() => { if(currentEmotion === 'attention') setEmotion('normal') }, 3000);
           } else if (battery && battery.charging) {
