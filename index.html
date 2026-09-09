@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>MUKU</title>
+  <!-- デザイン用にTailwind CSSを読み込み -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { background-color: #000; color: white; margin: 0; overflow: hidden; user-select: none; }
+    /* ムクのパーツのアニメーション設定 */
+    .eye { transition: all 0.7s ease-in-out; background-color: #f59e0b; border-radius: 50%; }
+    .mouth { transition: all 0.7s ease-in-out; stroke: #f59e0b; fill: transparent; stroke-width: 3; stroke-linecap: round; }
+    
+    /* 感情ごとの目の形 */
+    .eye-normal { width: 24px; height: 24px; }
+    .eye-relax { width: 24px; height: 6px; margin-top: 8px; }
+    .eye-attention { width: 32px; height: 32px; }
+    .eye-sleepy { width: 24px; height: 2px; margin-top: 12px; opacity: 0.3; background-color: #b45309; }
+  </style>
+</head>
+<body class="h-screen w-screen flex items-center justify-center">
+
+  <button id="start-btn" class="px-4 py-2 border border-amber-500 text-amber-500 rounded-full hover:bg-amber-500 hover:text-black transition">
+    ムクを起こす
+  </button>
+
+  <div id="muku-face" class="hidden flex-col items-center justify-center gap-6 w-full h-full">
+    <div class="flex gap-10">
+      <div class="flex items-center justify-center w-8 h-8"><div id="eye-l" class="eye eye-normal"></div></div>
+      <div class="flex items-center justify-center w-8 h-8"><div id="eye-r" class="eye eye-normal"></div></div>
+    </div>
+    <svg width="40" height="20" viewBox="0 0 40 20" class="opacity-70">
+      <path id="mouth" class="mouth" d="M 5 5 Q 12 15 20 5 Q 28 15 35 5" />
+    </svg>
+  </div>
+
+  <script>
+    const startBtn = document.getElementById('start-btn');
+    const face = document.getElementById('muku-face');
+    const eyeL = document.getElementById('eye-l');
+    const eyeR = document.getElementById('eye-r');
+    const mouth = document.getElementById('mouth');
+
+    let currentEmotion = 'normal';
+
+    function setEmotion(emotion) {
+      if (currentEmotion === emotion) return;
+      currentEmotion = emotion;
+
+      // 目のクラスを切り替え
+      eyeL.className = `eye eye-${emotion}`;
+      eyeR.className = `eye eye-${emotion}`;
+
+      // 口の形を切り替え
+      if (emotion === 'relax') {
+        mouth.setAttribute('d', 'M 5 10 Q 12 15 20 10 Q 28 15 35 10');
+      } else {
+        mouth.setAttribute('d', 'M 5 5 Q 12 15 20 5 Q 28 15 35 5');
+      }
+    }
+
+    startBtn.addEventListener('click', async () => {
+      startBtn.classList.add('hidden');
+      face.classList.remove('hidden');
+      face.classList.add('flex');
+
+      let battery = null;
+      if ('getBattery' in navigator) {
+        battery = await navigator.getBattery();
+      }
+
+      try {
+        // マイクの許可を要求
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const analyser = audioContext.createAnalyser();
+        const microphone = audioContext.createMediaStreamSource(stream);
+        
+        microphone.connect(analyser);
+        analyser.fftSize = 256;
+        const dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+        // 1秒ごとに状態をチェック
+        setInterval(() => {
+          const hour = new Date().getHours();
+          analyser.getByteFrequencyData(dataArray);
+          const volume = dataArray.reduce((a, b) => a + b) / dataArray.length;
+
+          if (volume > 40) {
+            setEmotion('attention');
+            setTimeout(() => setEmotion('normal'), 3000);
+          } else if (battery && battery.charging) {
+            setEmotion('relax');
+          } else if (battery && battery.level <= 0.2 && !battery.charging) {
+            setEmotion('sleepy');
+          } else if (hour >= 23 || hour < 5) {
+            setEmotion('sleepy');
+          } else if (currentEmotion !== 'normal' && volume <= 40) {
+            setEmotion('normal');
+          }
+        }, 1000);
+
+      } catch (err) {
+        console.error("マイクのアクセスが拒否されました", err);
+        alert("ムクが周囲の音を聞くために、マイクの許可が必要です。");
+      }
+    });
+  </script>
+</body>
+</html>
