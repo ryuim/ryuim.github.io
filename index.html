@@ -54,7 +54,6 @@
       <div class="flex flex-col gap-2">
         <label for="threshold-slider" class="text-sm text-gray-300">しきい値: <span id="threshold-val">100</span></label>
         <input id="threshold-slider" type="range" min="50" max="200" value="100" class="accent-amber-500 cursor-pointer">
-        <!-- 左右に「低」「高」のラベルを配置 -->
         <div class="flex justify-between text-xs text-gray-400 px-1">
           <span>低（敏感）</span>
           <span>高（鈍感）</span>
@@ -251,11 +250,13 @@
 
       moveCount++;
 
-      if (moveCount >= 10 && currentEmotion !== 'happy') {
+      // 軽い撫で（2回以上で笑顔に）
+      if (moveCount >= 2 && currentEmotion !== 'happy') {
         setEmotion('happy');
       }
 
-      if (moveCount >= 35) {
+      // ぐるる音（10回以上撫でると発動）
+      if (moveCount >= 10) {
         if (!hasPlayedPurrSound) {
           playCuteSound();
           hasPlayedPurrSound = true;
