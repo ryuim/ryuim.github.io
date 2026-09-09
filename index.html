@@ -80,7 +80,7 @@
 
       const filter = globalAudioContext.createBiquadFilter();
       filter.type = 'lowpass';
-      filter.frequency.value = 180; // ★400Hzから180Hzに変更（より低くこもった音に）
+      filter.frequency.value = 180; 
 
       lfoOscillator = globalAudioContext.createOscillator();
       lfoOscillator.type = 'sine';
@@ -120,7 +120,7 @@
       }
     }
 
-    // --- 撫でるアクションの判定 ---
+    // --- 撫でるアクションの判定（2段階） ---
     let lastMoveTime = 0;
     let petStrokeCount = 0;
     let petTimer = null;
@@ -133,8 +133,13 @@
       }
       lastMoveTime = now;
 
+      // 1段階目：2回撫でたら表情がにっこり変わる
       if (petStrokeCount >= 2 && currentEmotion !== 'happy') {
         setEmotion('happy');
+      }
+
+      // 2段階目：5回撫でたらぐるる音が鳴り始める
+      if (petStrokeCount >= 5) {
         startPurr();
       }
 
@@ -142,8 +147,8 @@
       petTimer = setTimeout(() => {
         if (currentEmotion === 'happy') {
           setEmotion('normal');
-          stopPurr();
         }
+        stopPurr();
         petStrokeCount = 0; 
       }, 1000);
     }
@@ -164,14 +169,14 @@
         }
         count++;
         
-        if (count >= 4) { // 2回まばたき（閉・開・閉・開）
+        if (count >= 4) { 
           clearInterval(blinkInterval);
           setTimeout(() => {
             eyeL.className = `eye eye-${currentEmotion}`;
             eyeR.className = `eye eye-${currentEmotion}`;
           }, 150);
         }
-      }, 150); // 0.15秒間隔で切り替え
+      }, 150);
     }
 
     // --- 初期化処理 ---
@@ -180,7 +185,6 @@
       face.classList.remove('hidden');
       face.classList.add('flex');
 
-      // ★顔が表示された直後にパチクリさせる
       playWakeUpBlink();
 
       let battery = null;
