@@ -77,7 +77,8 @@
 
       const filter = globalAudioContext.createBiquadFilter();
       filter.type = 'lowpass';
-      filter.frequency.value = 400; 
+      //filter.frequency.value = 400; 
+      filter.frequency.value = 200; 
 
       lfoOscillator = globalAudioContext.createOscillator();
       lfoOscillator.type = 'sine';
