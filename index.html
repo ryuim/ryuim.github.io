@@ -11,15 +11,14 @@
     .eye { transition: all 0.7s ease-in-out; background-color: #f59e0b; border-radius: 50%; }
     .mouth { transition: all 0.7s ease-in-out; stroke: #f59e0b; fill: transparent; stroke-width: 3; stroke-linecap: round; }
     
-    /* 初期状態の美しい比率をそのまま2倍に拡大 */
-    .eye-normal { width: 48px; height: 48px; }
-    .eye-relax { width: 48px; height: 12px; margin-top: 18px; }
-    .eye-attention { width: 64px; height: 64px; }
-    .eye-sleepy { width: 48px; height: 4px; margin-top: 24px; opacity: 0.3; background-color: #b45309; }
-    .eye-happy { width: 48px; height: 24px; border-radius: 48px 48px 0 0; margin-top: 12px; }
+    .eye-normal { width: 24px; height: 24px; }
+    .eye-relax { width: 24px; height: 6px; margin-top: 8px; }
+    .eye-attention { width: 32px; height: 32px; }
+    .eye-sleepy { width: 24px; height: 2px; margin-top: 12px; opacity: 0.3; background-color: #b45309; }
+    .eye-happy { width: 24px; height: 12px; border-radius: 24px 24px 0 0; margin-top: 6px; }
     
-    .eye-blink-closed { width: 48px; height: 4px; margin-top: 22px; transition: all 0.1s !important; }
-    .eye-blink-open { width: 48px; height: 48px; transition: all 0.1s !important; }
+    .eye-blink-closed { width: 24px; height: 2px; margin-top: 11px; transition: all 0.1s !important; }
+    .eye-blink-open { width: 24px; height: 24px; transition: all 0.1s !important; }
   </style>
 </head>
 <body class="h-screen w-screen flex items-center justify-center">
@@ -28,13 +27,12 @@
     ムクを起こす
   </button>
 
-  <!-- 初期の比率のまま拡大 -->
-  <div id="muku-face" class="hidden flex-col items-center justify-center gap-8 w-full h-full">
-    <div class="flex gap-14">
-      <div class="flex items-center justify-center w-12 h-12"><div id="eye-l" class="eye eye-normal"></div></div>
-      <div class="flex items-center justify-center w-12 h-12"><div id="eye-r" class="eye eye-normal"></div></div>
+  <div id="muku-face" class="hidden flex-col items-center justify-center gap-6 w-full h-full">
+    <div class="flex gap-10">
+      <div class="flex items-center justify-center w-8 h-8"><div id="eye-l" class="eye eye-normal"></div></div>
+      <div class="flex items-center justify-center w-8 h-8"><div id="eye-r" class="eye eye-normal"></div></div>
     </div>
-    <svg width="60" height="30" viewBox="0 0 40 20" class="opacity-70">
+    <svg width="40" height="20" viewBox="0 0 40 20" class="opacity-70">
       <path id="mouth" class="mouth" d="M 5 5 Q 12 15 20 5 Q 28 15 35 5" />
     </svg>
   </div>
@@ -53,8 +51,41 @@
     let lfoGainNode = null; 
     let masterGain = null;
 
+    // --- 可愛い鳴き声関数 ---
+    function playCuteSound(delay = 0) {
+      if (!globalAudioContext) return;
+      
+      setTimeout(() => {
+        const audioCtx = globalAudioContext;
+        const oscillator = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+
+        oscillator.type = 'sine';
+        const now = audioCtx.currentTime;
+
+        oscillator.frequency.setValueAtTime(1200, now);
+        oscillator.frequency.exponentialRampToValueAtTime(600, now + 0.28);
+
+        gainNode.gain.setValueAtTime(0, now);
+        gainNode.gain.linearRampToValueAtTime(0.3, now + 0.02);
+        gainNode.gain.exponentialRampToValueAtTime(0.0001, now + 0.2);
+
+        oscillator.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+
+        oscillator.start(now);
+        oscillator.stop(now + 0.21);
+      }, delay);
+    }
+
     function setEmotion(emotion) {
       if (currentEmotion === emotion) return;
+      
+      // 注意（目を大きく見開く）状態に変わる瞬間に1回鳴く
+      if (emotion === 'attention') {
+        playCuteSound(0);
+      }
+
       currentEmotion = emotion;
 
       eyeL.className = `eye eye-${emotion}`;
@@ -152,6 +183,7 @@
     let moveCount = 0;
     let petTimer = null;
     let lastEventTime = 0;
+    let hasPlayedPurrSound = false; // ぐるる前の鳴き声制御用
 
     function handlePet(e) {
       const now = Date.now();
@@ -166,6 +198,11 @@
       }
 
       if (moveCount >= 35) {
+        // ぐるる...が始まる直前に1回鳴く（最初の1回だけ）
+        if (!hasPlayedPurrSound) {
+          playCuteSound(0);
+          hasPlayedPurrSound = true;
+        }
         startPurr();
       }
 
@@ -176,6 +213,7 @@
         }
         stopPurr();
         moveCount = 0;
+        hasPlayedPurrSound = false; // リセット
       }, 1000);
     }
 
@@ -211,16 +249,19 @@
       face.classList.remove('hidden');
       face.classList.add('flex');
 
-      playWakeUpBlink();
-
-      let battery = null;
-      if ('getBattery' in navigator) {
-        battery = await navigator.getBattery();
-      }
-
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         globalAudioContext = new (window.AudioContext || window.webkitAudioContext)();
+        
+        // 起床時にパチクリと、2回連続で鳴き声を出す（0秒目と0.35秒後）
+        playWakeUpBlink();
+        playCuteSound(0);
+        playCuteSound(350);
+
+        let battery = null;
+        if ('getBattery' in navigator) {
+          battery = await navigator.getBattery();
+        }
         
         const analyser = globalAudioContext.createAnalyser();
         const microphone = globalAudioContext.createMediaStreamSource(stream);
@@ -237,7 +278,7 @@
           const volume = Math.max(...dataArray);
 
           if (volume > 50) {
-            setEmotion('attention');
+            setEmotion('attention'); // ここで自動的に鳴き声が1回鳴ります
             setTimeout(() => { if(currentEmotion === 'attention') setEmotion('normal') }, 3000);
           } else if (battery && battery.charging) {
             setEmotion('relax');
