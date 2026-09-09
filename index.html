@@ -11,28 +11,33 @@
     .eye { transition: all 0.7s ease-in-out; background-color: #f59e0b; border-radius: 50%; }
     .mouth { transition: all 0.7s ease-in-out; stroke: #f59e0b; fill: transparent; stroke-width: 3; stroke-linecap: round; }
     
-    .eye-normal { width: 24px; height: 24px; }
-    .eye-relax { width: 24px; height: 6px; margin-top: 8px; }
-    .eye-attention { width: 32px; height: 32px; }
-    .eye-sleepy { width: 24px; height: 2px; margin-top: 12px; opacity: 0.3; background-color: #b45309; }
-    .eye-happy { width: 24px; height: 12px; border-radius: 24px 24px 0 0; margin-top: 6px; }
+    /* 各パーツのサイズを1.5倍に拡大 */
+    .eye-normal { width: 36px; height: 36px; }
+    .eye-relax { width: 36px; height: 9px; margin-top: 12px; }
+    .eye-attention { width: 48px; height: 48px; }
+    .eye-sleepy { width: 36px; height: 3px; margin-top: 18px; opacity: 0.3; background-color: #b45309; }
+    .eye-happy { width: 36px; height: 18px; border-radius: 36px 36px 0 0; margin-top: 9px; }
     
-    .eye-blink-closed { width: 24px; height: 2px; margin-top: 11px; transition: all 0.1s !important; }
-    .eye-blink-open { width: 24px; height: 24px; transition: all 0.1s !important; }
+    .eye-blink-closed { width: 36px; height: 3px; margin-top: 16px; transition: all 0.1s !important; }
+    .eye-blink-open { width: 36px; height: 36px; transition: all 0.1s !important; }
   </style>
 </head>
 <body class="h-screen w-screen flex items-center justify-center">
 
-  <button id="start-btn" class="px-4 py-2 border border-amber-500 text-amber-500 rounded-full hover:bg-amber-500 hover:text-black transition">
+  <button id="start-btn" class="px-4 py-2 border border-amber-500 text-amber-500 rounded-full hover:bg-amber-500 hover:text-black transition flex items-center justify-center">
     ムクを起こす
   </button>
 
-  <div id="muku-face" class="hidden flex-col items-center justify-center gap-6 w-full h-full">
-    <div class="flex gap-10">
-      <div class="flex items-center justify-center w-8 h-8"><div id="eye-l" class="eye eye-normal"></div></div>
-      <div class="flex items-center justify-center w-8 h-8"><div id="eye-r" class="eye eye-normal"></div></div>
+  <!-- gap-6をgap-9に変更（顔の縦の隙間を1.5倍） -->
+  <div id="muku-face" class="hidden flex-col items-center justify-center gap-9 w-full h-full">
+    <!-- gap-10をgap-[60px]に変更（両目の間の距離を1.5倍） -->
+    <div class="flex gap-[60px]">
+      <!-- 目のコンテナ枠(w-8 h-8)を(w-12 h-12)に拡大 -->
+      <div class="flex items-center justify-center w-12 h-12"><div id="eye-l" class="eye eye-normal"></div></div>
+      <div class="flex items-center justify-center w-12 h-12"><div id="eye-r" class="eye eye-normal"></div></div>
     </div>
-    <svg width="40" height="20" viewBox="0 0 40 20" class="opacity-70">
+    <!-- 口のキャンバスサイズを width="60" height="30" に拡大（線も太くなります） -->
+    <svg width="60" height="30" viewBox="0 0 40 20" class="opacity-70">
       <path id="mouth" class="mouth" d="M 5 5 Q 12 15 20 5 Q 28 15 35 5" />
     </svg>
   </div>
