@@ -48,7 +48,7 @@
     let globalAudioContext = null;
     let purrOscillator = null;
     let lfoOscillator = null; 
-    let purrGain = null;
+    let masterGain = null; // ★フェードイン・フェードアウト専用の調整役を追加
 
     function setEmotion(emotion) {
       if (currentEmotion === emotion) return;
@@ -74,13 +74,16 @@
 
       purrOscillator = globalAudioContext.createOscillator();
       purrOscillator.type = 'sawtooth';
-      purrOscillator.frequency.value = 20; 
+      purrOscillator.frequency.value = 20;
 
-      purrGain = globalAudioContext.createGain();
-      
-      // ★開始時のポップノイズ対策（0.1秒かけて滑らかに音量を上げる）
-      purrGain.gain.setValueAtTime(0, now);
-      purrGain.gain.linearRampToValueAtTime(0.5, now + 0.1);
+      // リズムを作るゲイン（音量）
+      const purrGain = globalAudioContext.createGain();
+      purrGain.gain.value = 0.5;
+
+      // ★ポップノイズ対策：全体のボリュームを司るマスターゲイン
+      masterGain = globalAudioContext.createGain();
+      masterGain.gain.setValueAtTime(0, now);
+      masterGain.gain.linearRampToValueAtTime(1, now + 0.1); // 0.1秒かけて滑らかに音を出す
 
       const filter = globalAudioContext.createBiquadFilter();
       filter.type = 'lowpass';
@@ -96,38 +99,44 @@
       lfoOscillator.connect(lfoGain);
       lfoGain.connect(purrGain.gain);
 
+      // 接続ルート：波形生成 -> フィルター -> リズム付け -> マスター音量 -> スピーカー
       purrOscillator.connect(filter);
       filter.connect(purrGain);
-      purrGain.connect(globalAudioContext.destination);
+      purrGain.connect(masterGain);
+      masterGain.connect(globalAudioContext.destination);
 
       purrOscillator.start(now);
       lfoOscillator.start(now);
     }
 
     function stopPurr() {
-      if (purrGain && purrOscillator) {
+      if (masterGain && purrOscillator) {
         const now = globalAudioContext.currentTime;
-        const fadeOutTime = 1.0; // 1秒かけてフェードアウト
+        const fadeOutTime = 1.0; 
         
-        // ★終了時のポップノイズ対策
-        purrGain.gain.cancelScheduledValues(now); // 進行中のアニメーションをキャンセル
-        purrGain.gain.setValueAtTime(purrGain.gain.value, now); // 現在の音量を起点にする
-        purrGain.gain.linearRampToValueAtTime(0, now + fadeOutTime); // 1秒後に完全にゼロにする
+        // ★ポップノイズ対策：リズムに干渉せず、マスターボリュームだけを強制的に絞る
+        masterGain.gain.cancelScheduledValues(now);
+        masterGain.gain.setValueAtTime(masterGain.gain.value, now);
+        masterGain.gain.linearRampToValueAtTime(0, now + fadeOutTime);
         
-        // JSのアバウトなタイマーではなく、AudioContextの正確な時間で停止させる
-        purrOscillator.stop(now + fadeOutTime);
-        if (lfoOscillator) lfoOscillator.stop(now + fadeOutTime);
+        // 処理中のオシレーターを変数に退避（フェードアウト中に再び撫でられた時のバグを防ぐ）
+        const oldPurrOsc = purrOscillator;
+        const oldLfoOsc = lfoOscillator;
+        const oldMasterGain = masterGain;
+
+        oldPurrOsc.stop(now + fadeOutTime);
+        if (oldLfoOsc) oldLfoOsc.stop(now + fadeOutTime);
         
-        // 音が完全に消えてからメモリを解放（余裕を見て1.1秒後）
+        // グローバル変数を即座に空にし、次の撫でアクションをすぐに受け付ける
+        purrOscillator = null;
+        lfoOscillator = null;
+        masterGain = null;
+
+        // 音が完全にゼロになってからメモリを安全に解放
         setTimeout(() => {
-          if (purrOscillator) {
-            purrOscillator.disconnect();
-            purrOscillator = null;
-          }
-          if (lfoOscillator) {
-            lfoOscillator.disconnect();
-            lfoOscillator = null;
-          }
+          if (oldPurrOsc) oldPurrOsc.disconnect();
+          if (oldLfoOsc) oldLfoOsc.disconnect();
+          if (oldMasterGain) oldMasterGain.disconnect();
         }, (fadeOutTime + 0.1) * 1000);
       }
     }
