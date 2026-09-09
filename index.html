@@ -67,10 +67,10 @@
     function startPurr() {
       if (!globalAudioContext || purrOscillator) return;
       
-      // 音の高さを60Hz（少し低く）に変更
+      // 音の高さを45Hzに変更
       purrOscillator = globalAudioContext.createOscillator();
       purrOscillator.type = 'sawtooth';
-      purrOscillator.frequency.value = 60; 
+      purrOscillator.frequency.value = 45; 
 
       purrGain = globalAudioContext.createGain();
       purrGain.gain.value = 0.5;
@@ -79,10 +79,10 @@
       filter.type = 'lowpass';
       filter.frequency.value = 400; 
 
-      // テンポを 0.5（ゆっくり）に変更
+      // テンポを 1.0 に変更
       lfoOscillator = globalAudioContext.createOscillator();
       lfoOscillator.type = 'sine';
-      lfoOscillator.frequency.value = 0.5; 
+      lfoOscillator.frequency.value = 1.0; 
 
       const lfoGain = globalAudioContext.createGain();
       lfoGain.gain.value = 0.4; 
@@ -116,35 +116,35 @@
       }
     }
 
-    // --- 撫でるアクションの判定（条件緩和） ---
-    let firstPetTime = 0;
-    let lastPetTime = 0;
+    // --- 撫でるアクションの判定 ---
+    let lastMoveTime = 0;
+    let petStrokeCount = 0;
     let petTimer = null;
 
     function handlePet(e) {
       const now = Date.now();
       
-      // 指が1秒以上離れたら、最初のタッチ時間をリセット
-      if (now - lastPetTime > 1000) {
-        firstPetTime = now;
+      // 指の動きが一瞬（300ms）以上止まってから再び動いたら「1回の撫で」とカウント
+      if (now - lastMoveTime > 300) {
+        petStrokeCount++;
       }
-      lastPetTime = now;
+      lastMoveTime = now;
 
-      // 撫で始めから3秒（3000ms）経過していれば喜ぶ
-      if (firstPetTime > 0 && (now - firstPetTime > 3000) && currentEmotion !== 'happy') {
+      // 2回撫でたら喜ぶ
+      if (petStrokeCount >= 2 && currentEmotion !== 'happy') {
         setEmotion('happy');
         startPurr();
       }
 
-      // 撫でるのをやめてから2秒後にリセット
+      // 撫でるのをやめてから1秒後にリセット
       clearTimeout(petTimer);
       petTimer = setTimeout(() => {
         if (currentEmotion === 'happy') {
           setEmotion('normal');
           stopPurr();
         }
-        firstPetTime = 0;
-      }, 2000);
+        petStrokeCount = 0; // カウントもリセット
+      }, 1000);
     }
 
     face.addEventListener('touchmove', handlePet, { passive: true });
@@ -179,7 +179,6 @@
           analyser.getByteFrequencyData(dataArray);
           const volume = Math.max(...dataArray);
 
-          // 感度を50に変更
           if (volume > 50) {
             setEmotion('attention');
             setTimeout(() => { if(currentEmotion === 'attention') setEmotion('normal') }, 3000);
