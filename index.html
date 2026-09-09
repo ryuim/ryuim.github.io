@@ -2,22 +2,11 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>MUKU</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    html, body {
-      background-color: #000;
-      color: white;
-      margin: 0;
-      padding: 0;
-      width: 100vw;
-      height: 100vh;
-      overflow: hidden;
-      user-select: none;
-      touch-action: none;
-      position: fixed;
-    }
+    body { background-color: #000; color: white; margin: 0; overflow: hidden; user-select: none; touch-action: none; }
     
     .eye { transition: all 0.7s ease-in-out; background-color: #f59e0b; border-radius: 50%; }
     .mouth { transition: all 0.7s ease-in-out; stroke: #f59e0b; fill: transparent; stroke-width: 3; stroke-linecap: round; }
@@ -32,13 +21,13 @@
     .eye-blink-open { width: 48px; height: 48px; transition: all 0.1s !important; }
   </style>
 </head>
-<body class="flex flex-col items-center justify-center relative">
+<body class="h-screen w-screen flex items-center justify-center relative">
 
-  <button id="start-btn" class="px-6 py-3 border border-amber-500 text-amber-500 rounded-full hover:bg-amber-500 hover:text-black transition flex items-center justify-center z-20 text-lg font-bold">
+  <button id="start-btn" class="px-4 py-2 border border-amber-500 text-amber-500 rounded-full hover:bg-amber-500 hover:text-black transition flex items-center justify-center z-10">
     ムクを起こす
   </button>
 
-  <div id="muku-face" style="display: none;" class="flex-col items-center justify-center gap-8 w-full h-full absolute inset-0">
+  <div id="muku-face" class="hidden flex-col items-center justify-center gap-8 w-full h-full">
     <div class="flex gap-14">
       <div class="flex items-center justify-center w-12 h-12"><div id="eye-l" class="eye eye-normal"></div></div>
       <div class="flex items-center justify-center w-12 h-12"><div id="eye-r" class="eye eye-normal"></div></div>
@@ -48,15 +37,15 @@
     </svg>
   </div>
 
-  <!-- 充電中アイコン（初期は非表示、充電時に右上に表示） -->
-  <div id="charging-indicator" style="display: none; position: fixed; top: 20px; left: 20px;" class="text-amber-400 z-40 bg-neutral-900/80 p-2.5 rounded-full border border-amber-500/30 backdrop-blur-md shadow-lg flex items-center justify-center animate-pulse" title="充電中">
+  <!-- 充電中アイコン（充電時に自動で左上に表示されます） -->
+  <div id="charging-indicator" style="display: none;" class="absolute top-4 left-4 text-amber-500/80 bg-neutral-900/60 p-2.5 rounded-full border border-amber-500/30 backdrop-blur-sm z-30 flex items-center justify-center">
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
       <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
     </svg>
   </div>
 
-  <!-- マイク設定ボタン：画面右上 -->
-  <button id="mic-settings-btn" style="display: none; position: fixed; top: 16px; right: 16px;" class="text-amber-500/90 hover:text-amber-400 transition p-3.5 z-50 bg-neutral-900/90 rounded-full border border-amber-500/40 backdrop-blur-md shadow-2xl">
+  <!-- 画面下部のマイクアイコン -->
+  <button id="mic-settings-btn" style="display: none;" class="absolute bottom-6 left-1/2 -translate-x-1/2 text-amber-500/60 hover:text-amber-500 transition p-3 z-30 bg-neutral-900/50 rounded-full border border-amber-500/20 backdrop-blur-sm">
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
       <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
       <path d="M19 10v1a7 7 0 0 1-14 0v-1"></path>
@@ -66,7 +55,7 @@
   </button>
 
   <!-- 感度調整モーダル -->
-  <div id="settings-modal" style="display: none; position: fixed;" class="inset-0 bg-black/85 backdrop-blur-sm items-center justify-center z-50">
+  <div id="settings-modal" style="display: none;" class="absolute inset-0 bg-black/80 backdrop-blur-sm items-center justify-center z-40">
     <div class="bg-neutral-900 border border-amber-500/30 p-6 rounded-2xl w-80 text-center flex flex-col gap-4 shadow-2xl">
       <h3 class="text-amber-500 font-bold text-lg">マイク感度調整</h3>
       <div class="flex flex-col gap-2">
@@ -106,8 +95,6 @@
     let isPurring = false;
     let soundThreshold = 140;
     let lastAttentionTime = 0;
-    let attentionTimer = null;
-    let batteryObj = null;
 
     micSettingsBtn.addEventListener('click', () => {
       settingsModal.style.display = 'flex';
@@ -155,8 +142,12 @@
     }
 
     function setEmotion(emotion) {
-      if (currentEmotion === emotion && emotion !== 'attention') return;
+      if (currentEmotion === emotion) return;
       
+      if (emotion === 'attention') {
+        playCuteSound();
+      }
+
       currentEmotion = emotion;
 
       eyeL.className = `eye eye-${emotion}`;
@@ -339,8 +330,11 @@
           playCuteSound();
         }, 400);
 
+        let battery = null;
         if ('getBattery' in navigator) {
-          batteryObj = await navigator.getBattery();
+          try {
+            battery = await navigator.getBattery();
+          } catch(e) {}
         }
 
         const stream = await navigator.mediaDevices.getUserMedia({ 
@@ -355,13 +349,11 @@
         const dataArray = new Uint8Array(analyser.frequencyBinCount);
 
         setInterval(() => {
-          // 充電状態のアイコン表示を更新
-          if (batteryObj) {
-            if (batteryObj.charging) {
-              chargingIndicator.style.display = 'flex';
-            } else {
-              chargingIndicator.style.display = 'none';
-            }
+          // 充電状態に応じて充電アイコンの表示を自動切り替え
+          if (battery && battery.charging) {
+            chargingIndicator.style.display = 'flex';
+          } else {
+            chargingIndicator.style.display = 'none';
           }
 
           if (isPlayingSound || isPurring || currentEmotion === 'happy') return;
@@ -373,20 +365,14 @@
           if (volume > soundThreshold && (nowTime - lastAttentionTime > 8000)) {
             lastAttentionTime = nowTime;
             setEmotion('attention');
-            playCuteSound();
-
-            clearTimeout(attentionTimer);
-            attentionTimer = setTimeout(() => { 
-              if (currentEmotion === 'attention') {
-                setEmotion('normal');
-              }
+            setTimeout(() => { 
+              if(currentEmotion === 'attention') setEmotion('normal'); 
             }, 3000);
-
           } else if (currentEmotion !== 'attention') {
             const hour = new Date().getHours();
-            if (batteryObj && batteryObj.charging) {
+            if (battery && battery.charging) {
               setEmotion('relax');
-            } else if (batteryObj && batteryObj.level <= 0.2 && !batteryObj.charging) {
+            } else if (battery && battery.level <= 0.2 && !battery.charging) {
               setEmotion('sleepy');
             } else if (hour >= 23 || hour < 5) {
               setEmotion('sleepy');
