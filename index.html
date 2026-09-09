@@ -23,11 +23,11 @@
 </head>
 <body class="h-screen w-screen flex items-center justify-center relative">
 
-  <button id="start-btn" class="px-4 py-2 border border-amber-500 text-amber-500 rounded-full hover:bg-amber-500 hover:text-black transition flex items-center justify-center z-10">
+  <button id="start-btn" class="px-6 py-3 border border-amber-500 text-amber-500 rounded-full hover:bg-amber-500 hover:text-black transition flex items-center justify-center z-10 text-lg font-bold">
     ムクを起こす
   </button>
 
-  <div id="muku-face" class="hidden flex-col items-center justify-center gap-8 w-full h-full">
+  <div id="muku-face" style="display: none;" class="flex-col items-center justify-center gap-8 w-full h-full">
     <div class="flex gap-14">
       <div class="flex items-center justify-center w-12 h-12"><div id="eye-l" class="eye eye-normal"></div></div>
       <div class="flex items-center justify-center w-12 h-12"><div id="eye-r" class="eye eye-normal"></div></div>
@@ -37,8 +37,8 @@
     </svg>
   </div>
 
-  <!-- 画面下部のマイクアイコン -->
-  <button id="mic-settings-btn" style="display: none;" class="absolute bottom-6 left-1/2 -translate-x-1/2 text-amber-500/60 hover:text-amber-500 transition p-3 z-30 bg-neutral-900/50 rounded-full border border-amber-500/20 backdrop-blur-sm">
+  <!-- 画面下部のマイクアイコン（初期状態から確実に配置） -->
+  <button id="mic-settings-btn" style="display: none;" class="absolute bottom-6 left-1/2 -translate-x-1/2 text-amber-500/80 hover:text-amber-400 transition p-3 z-30 bg-neutral-900/80 rounded-full border border-amber-500/30 backdrop-blur-sm shadow-lg">
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
       <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
       <path d="M19 10v1a7 7 0 0 1-14 0v-1"></path>
@@ -52,8 +52,8 @@
     <div class="bg-neutral-900 border border-amber-500/30 p-6 rounded-2xl w-80 text-center flex flex-col gap-4 shadow-2xl">
       <h3 class="text-amber-500 font-bold text-lg">マイク感度調整</h3>
       <div class="flex flex-col gap-2">
-        <label for="threshold-slider" class="text-sm text-gray-300">しきい値: <span id="threshold-val">100</span></label>
-        <input id="threshold-slider" type="range" min="50" max="200" value="100" class="accent-amber-500 cursor-pointer">
+        <label for="threshold-slider" class="text-sm text-gray-300">しきい値: <span id="threshold-val">140</span></label>
+        <input id="threshold-slider" type="range" min="50" max="255" value="140" class="accent-amber-500 cursor-pointer">
         <div class="flex justify-between text-xs text-gray-400 px-1">
           <span>低（敏感）</span>
           <span>高（鈍感）</span>
@@ -85,7 +85,8 @@
     let masterGain = null;
     let isPlayingSound = false;
     let isPurring = false;
-    let soundThreshold = 100;
+    let soundThreshold = 140; // 初期値を140に引き上げ
+    let lastAttentionTime = 0; // クールダウン用タイムスタンプ
 
     micSettingsBtn.addEventListener('click', () => {
       settingsModal.style.display = 'flex';
@@ -236,7 +237,7 @@
       }
     }
 
-    // --- 撫でるアクションの判定 ---
+    // --- 撫でるアクションの判定（25回以上でぐるる） ---
     let moveCount = 0;
     let petTimer = null;
     let lastEventTime = 0;
@@ -250,12 +251,10 @@
 
       moveCount++;
 
-      // 軽い撫で（2回以上で笑顔に）
       if (moveCount >= 2 && currentEmotion !== 'happy') {
         setEmotion('happy');
       }
 
-      // ぐるる音（25回以上撫でると発動）
       if (moveCount >= 25) {
         if (!hasPlayedPurrSound) {
           playCuteSound();
@@ -309,7 +308,7 @@
     startBtn.addEventListener('click', async () => {
       startBtn.style.display = 'none';
       face.style.display = 'flex';
-      micSettingsBtn.style.display = 'block';
+      micSettingsBtn.style.display = 'block'; // マイクアイコンを強制表示
 
       try {
         globalAudioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -345,7 +344,10 @@
           analyser.getByteFrequencyData(dataArray);
           const volume = Math.max(...dataArray);
 
-          if (volume > soundThreshold) {
+          const nowTime = Date.now();
+          // volumeがしきい値を超えていても、前回の発動から8秒以上経過していなければ反応しない（無限ループ防止）
+          if (volume > soundThreshold && (nowTime - lastAttentionTime > 8000)) {
+            lastAttentionTime = nowTime;
             setEmotion('attention');
             setTimeout(() => { 
               if(currentEmotion === 'attention') setEmotion('normal'); 
@@ -363,7 +365,7 @@
 
       } catch (err) {
         console.error("マイクのアクセスが拒否されました", err);
-        alert("ムクが周囲の音を聞くために、マイクの許可が必要です。");
+        // マイクが拒否やエラーでも顔の表示とマイクアイコン（設定用）は使えるように維持
       }
     });
   </script>
