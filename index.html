@@ -48,6 +48,13 @@
     </svg>
   </div>
 
+  <!-- 充電中アイコン（初期は非表示、充電時に右上に表示） -->
+  <div id="charging-indicator" style="display: none; position: fixed; top: 20px; left: 20px;" class="text-amber-400 z-40 bg-neutral-900/80 p-2.5 rounded-full border border-amber-500/30 backdrop-blur-md shadow-lg flex items-center justify-center animate-pulse" title="充電中">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+    </svg>
+  </div>
+
   <!-- マイク設定ボタン：画面右上 -->
   <button id="mic-settings-btn" style="display: none; position: fixed; top: 16px; right: 16px;" class="text-amber-500/90 hover:text-amber-400 transition p-3.5 z-50 bg-neutral-900/90 rounded-full border border-amber-500/40 backdrop-blur-md shadow-2xl">
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -87,6 +94,7 @@
     const thresholdSlider = document.getElementById('threshold-slider');
     const thresholdVal = document.getElementById('threshold-val');
     const closeModalBtn = document.getElementById('close-modal-btn');
+    const chargingIndicator = document.getElementById('charging-indicator');
 
     let currentEmotion = 'normal';
     let globalAudioContext = null;
@@ -98,7 +106,8 @@
     let isPurring = false;
     let soundThreshold = 140;
     let lastAttentionTime = 0;
-    let attentionTimer = null; // attention復帰タイマー管理用
+    let attentionTimer = null;
+    let batteryObj = null;
 
     micSettingsBtn.addEventListener('click', () => {
       settingsModal.style.display = 'flex';
@@ -330,13 +339,13 @@
           playCuteSound();
         }, 400);
 
+        if ('getBattery' in navigator) {
+          batteryObj = await navigator.getBattery();
+        }
+
         const stream = await navigator.mediaDevices.getUserMedia({ 
           audio: { echoCancellation: true, noiseSuppression: true } 
         });
-        let battery = null;
-        if ('getBattery' in navigator) {
-          battery = await navigator.getBattery();
-        }
         
         const analyser = globalAudioContext.createAnalyser();
         const microphone = globalAudioContext.createMediaStreamSource(stream);
@@ -346,9 +355,17 @@
         const dataArray = new Uint8Array(analyser.frequencyBinCount);
 
         setInterval(() => {
+          // 充電状態のアイコン表示を更新
+          if (batteryObj) {
+            if (batteryObj.charging) {
+              chargingIndicator.style.display = 'flex';
+            } else {
+              chargingIndicator.style.display = 'none';
+            }
+          }
+
           if (isPlayingSound || isPurring || currentEmotion === 'happy') return;
 
-          const hour = new Date().getHours();
           analyser.getByteFrequencyData(dataArray);
           const volume = Math.max(...dataArray);
 
@@ -358,7 +375,6 @@
             setEmotion('attention');
             playCuteSound();
 
-            // 既存のタイマーをクリアして確実に3秒後に通常状態に戻す
             clearTimeout(attentionTimer);
             attentionTimer = setTimeout(() => { 
               if (currentEmotion === 'attention') {
@@ -367,9 +383,10 @@
             }, 3000);
 
           } else if (currentEmotion !== 'attention') {
-            if (battery && battery.charging) {
+            const hour = new Date().getHours();
+            if (batteryObj && batteryObj.charging) {
               setEmotion('relax');
-            } else if (battery && battery.level <= 0.2 && !battery.charging) {
+            } else if (batteryObj && batteryObj.level <= 0.2 && !batteryObj.charging) {
               setEmotion('sleepy');
             } else if (hour >= 23 || hour < 5) {
               setEmotion('sleepy');
