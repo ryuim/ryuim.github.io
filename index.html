@@ -48,7 +48,8 @@
     let globalAudioContext = null;
     let purrOscillator = null;
     let lfoOscillator = null; 
-    let masterGain = null; // ★フェードイン・フェードアウト専用の調整役を追加
+    let lfoGainNode = null; // LFOの揺れ幅を制御するゲイン
+    let masterGain = null;
 
     function setEmotion(emotion) {
       if (currentEmotion === emotion) return;
@@ -76,14 +77,12 @@
       purrOscillator.type = 'sawtooth';
       purrOscillator.frequency.value = 20;
 
-      // リズムを作るゲイン（音量）
       const purrGain = globalAudioContext.createGain();
       purrGain.gain.value = 0.5;
 
-      // ★ポップノイズ対策：全体のボリュームを司るマスターゲイン
       masterGain = globalAudioContext.createGain();
       masterGain.gain.setValueAtTime(0, now);
-      masterGain.gain.linearRampToValueAtTime(1, now + 0.1); // 0.1秒かけて滑らかに音を出す
+      masterGain.gain.linearRampToValueAtTime(1, now + 0.1);
 
       const filter = globalAudioContext.createBiquadFilter();
       filter.type = 'lowpass';
@@ -93,13 +92,14 @@
       lfoOscillator.type = 'sine';
       lfoOscillator.frequency.value = 1.0; 
 
-      const lfoGain = globalAudioContext.createGain();
-      lfoGain.gain.value = 0.4; 
+      lfoGainNode = globalAudioContext.createGain();
+      lfoGainNode.gain.setValueAtTime(0, now);
+      // LFOの揺れ幅を滑らかに開始（立ち上がりの不自然さを軽減）
+      lfoGainNode.gain.linearRampToValueAtTime(0.4, now + 0.5); 
 
-      lfoOscillator.connect(lfoGain);
-      lfoGain.connect(purrGain.gain);
+      lfoOscillator.connect(lfoGainNode);
+      lfoGainNode.connect(purrGain.gain);
 
-      // 接続ルート：波形生成 -> フィルター -> リズム付け -> マスター音量 -> スピーカー
       purrOscillator.connect(filter);
       filter.connect(purrGain);
       purrGain.connect(masterGain);
@@ -110,34 +110,44 @@
     }
 
     function stopPurr() {
-      if (masterGain && purrOscillator) {
+      if (masterGain && purrOscillator && lfoGainNode) {
         const now = globalAudioContext.currentTime;
-        const fadeOutTime = 1.0; 
+        const lfoFadeOutTime = 1.5;    // まずLFO（揺れ）を1.5秒かけて消す
+        const masterFadeOutTime = 1.0; // その後、マスター音量を1.0秒かけて消す
+        const totalFadeOutTime = lfoFadeOutTime + masterFadeOutTime;
         
-        // ★ポップノイズ対策：リズムに干渉せず、マスターボリュームだけを強制的に絞る
+        // 1. LFO（揺れ）のフェードアウト
+        lfoGainNode.gain.cancelScheduledValues(now);
+        lfoGainNode.gain.setValueAtTime(lfoGainNode.gain.value, now);
+        lfoGainNode.gain.linearRampToValueAtTime(0, now + lfoFadeOutTime);
+
+        // 2. LFOが消えた後、マスターゲインのフェードアウトを開始
         masterGain.gain.cancelScheduledValues(now);
-        masterGain.gain.setValueAtTime(masterGain.gain.value, now);
-        masterGain.gain.linearRampToValueAtTime(0, now + fadeOutTime);
+        // LFOフェードアウト中はマスター音量を維持
+        masterGain.gain.setValueAtTime(masterGain.gain.value, now); 
+        masterGain.gain.setValueAtTime(masterGain.gain.value, now + lfoFadeOutTime);
+        // その後、ゆっくりとゼロへ
+        masterGain.gain.linearRampToValueAtTime(0, now + totalFadeOutTime);
         
-        // 処理中のオシレーターを変数に退避（フェードアウト中に再び撫でられた時のバグを防ぐ）
         const oldPurrOsc = purrOscillator;
         const oldLfoOsc = lfoOscillator;
         const oldMasterGain = masterGain;
+        const oldLfoGain = lfoGainNode;
 
-        oldPurrOsc.stop(now + fadeOutTime);
-        if (oldLfoOsc) oldLfoOsc.stop(now + fadeOutTime);
+        oldPurrOsc.stop(now + totalFadeOutTime);
+        if (oldLfoOsc) oldLfoOsc.stop(now + totalFadeOutTime);
         
-        // グローバル変数を即座に空にし、次の撫でアクションをすぐに受け付ける
         purrOscillator = null;
         lfoOscillator = null;
         masterGain = null;
+        lfoGainNode = null;
 
-        // 音が完全にゼロになってからメモリを安全に解放
         setTimeout(() => {
           if (oldPurrOsc) oldPurrOsc.disconnect();
           if (oldLfoOsc) oldLfoOsc.disconnect();
           if (oldMasterGain) oldMasterGain.disconnect();
-        }, (fadeOutTime + 0.1) * 1000);
+          if (oldLfoGain) oldLfoGain.disconnect();
+        }, (totalFadeOutTime + 0.1) * 1000);
       }
     }
 
