@@ -95,10 +95,10 @@
     let isPurring = false;
     let lastAttentionTime = 0;
 
-    // --- ローカルストレージから保存されたしきい値を読み込み ---
+    // --- ローカルストレージからの読み込みと初期反映 ---
     let soundThreshold = 140;
     const savedThreshold = localStorage.getItem('muku_threshold');
-    if (savedThreshold !== null) {
+    if (savedThreshold !== null && !isNaN(Number(savedThreshold))) {
       soundThreshold = Number(savedThreshold);
     }
     thresholdSlider.value = soundThreshold;
@@ -111,10 +111,15 @@
       settingsModal.style.display = 'none';
     });
 
-    // --- スライダー操作時に値を更新し、localStorageに保存 ---
+    // --- スライダー操作中の表示更新 ---
     thresholdSlider.addEventListener('input', (e) => {
       soundThreshold = Number(e.target.value);
       thresholdVal.textContent = soundThreshold;
+    });
+
+    // --- スライダー変更確定時（指を離した時・入力完了時）にlocalStorageへ保存 ---
+    thresholdSlider.addEventListener('change', (e) => {
+      soundThreshold = Number(e.target.value);
       localStorage.setItem('muku_threshold', soundThreshold);
     });
 
