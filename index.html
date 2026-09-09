@@ -6,7 +6,20 @@
   <title>MUKU</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    body { background-color: #000; color: white; margin: 0; overflow: hidden; user-select: none; touch-action: none; }
+    /* bodyの fixed を廃止し、スマホのURLバーを考慮した 100dvh を採用 */
+    html, body {
+      background-color: #000;
+      color: white;
+      margin: 0;
+      padding: 0;
+      width: 100vw;
+      height: 100vh; 
+      height: 100dvh;
+      overflow: hidden;
+      user-select: none;
+      touch-action: none;
+      position: relative;
+    }
     
     .eye { transition: all 0.7s ease-in-out; background-color: #f59e0b; border-radius: 50%; }
     .mouth { transition: all 0.7s ease-in-out; stroke: #f59e0b; fill: transparent; stroke-width: 3; stroke-linecap: round; }
@@ -21,13 +34,13 @@
     .eye-blink-open { width: 48px; height: 48px; transition: all 0.1s !important; }
   </style>
 </head>
-<body class="h-screen w-screen flex items-center justify-center relative">
+<body class="flex flex-col items-center justify-center">
 
   <button id="start-btn" class="px-6 py-3 border border-amber-500 text-amber-500 rounded-full hover:bg-amber-500 hover:text-black transition flex items-center justify-center z-10 text-lg font-bold">
     ムクを起こす
   </button>
 
-  <div id="muku-face" class="hidden flex-col items-center justify-center gap-8 w-full h-full">
+  <div id="muku-face" style="display: none;" class="absolute inset-0 flex-col items-center justify-center gap-8 w-full h-full">
     <div class="flex gap-14">
       <div class="flex items-center justify-center w-12 h-12"><div id="eye-l" class="eye eye-normal"></div></div>
       <div class="flex items-center justify-center w-12 h-12"><div id="eye-r" class="eye eye-normal"></div></div>
@@ -37,15 +50,15 @@
     </svg>
   </div>
 
-  <!-- 充電中アイコン（自動表示） -->
-  <div id="charging-indicator" style="display: none; position: fixed; top: 16px; left: 16px;" class="text-amber-500/80 bg-neutral-900/60 p-3.5 rounded-full border border-amber-500/30 backdrop-blur-sm z-50 flex items-center justify-center shadow-xl">
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+  <!-- 充電中アイコン（左上） -->
+  <div id="charging-indicator" style="display: none; position: absolute; top: 24px; left: 24px; z-index: 50;" class="text-amber-500/80 bg-neutral-900/60 p-3 rounded-full border border-amber-500/30 backdrop-blur-sm shadow-xl items-center justify-center">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
       <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
     </svg>
   </div>
 
-  <!-- マイク設定ボタン：確実な右上固定 -->
-  <button id="mic-settings-btn" style="display: none; position: fixed; top: 16px; right: 16px;" class="text-amber-500/90 hover:text-amber-400 transition p-3.5 z-50 bg-neutral-900/90 rounded-full border border-amber-500/40 backdrop-blur-md shadow-2xl">
+  <!-- マイク設定ボタン：画面右上（カメラ穴を回避して少し内側に配置） -->
+  <button id="mic-settings-btn" style="display: none; position: absolute; top: 24px; right: 24px; z-index: 50;" class="text-amber-500/90 hover:text-amber-400 transition p-3.5 bg-neutral-900/90 rounded-full border border-amber-500/40 backdrop-blur-md shadow-2xl items-center justify-center">
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
       <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
       <path d="M19 10v1a7 7 0 0 1-14 0v-1"></path>
@@ -55,12 +68,11 @@
   </button>
 
   <!-- 感度調整モーダル -->
-  <div id="settings-modal" style="display: none; position: fixed;" class="inset-0 bg-black/85 backdrop-blur-sm items-center justify-center z-50">
+  <div id="settings-modal" style="display: none; position: absolute;" class="inset-0 bg-black/85 backdrop-blur-sm items-center justify-center z-50">
     <div class="bg-neutral-900 border border-amber-500/30 p-6 rounded-2xl w-80 text-center flex flex-col gap-4 shadow-2xl">
       <h3 class="text-amber-500 font-bold text-lg">マイク感度調整</h3>
       <div class="flex flex-col gap-2">
         <label for="threshold-slider" class="text-sm text-gray-300">しきい値: <span id="threshold-val"></span></label>
-        <!-- ブラウザ復元を防止するため autocomplete="off" を追加し、value指定を削除 -->
         <input id="threshold-slider" type="range" min="50" max="255" autocomplete="off" class="accent-amber-500 cursor-pointer">
         <div class="flex justify-between text-xs text-gray-400 px-1">
           <span>低（敏感）</span>
@@ -98,32 +110,25 @@
 
     // --- 設定値の永続化ロジック ---
     const STORAGE_KEY = 'muku_mic_threshold_v2';
-    let soundThreshold = 140; // 初期値
+    let soundThreshold = 140;
 
-    // スライダーとテキスト表示の更新処理
     function applyThresholdToDOM() {
       thresholdSlider.value = soundThreshold;
       thresholdVal.textContent = soundThreshold;
     }
 
-    // ストレージからの読み込みと初期化
     function initStorage() {
       try {
         const saved = localStorage.getItem(STORAGE_KEY);
         if (saved !== null && !isNaN(Number(saved))) {
           soundThreshold = Number(saved);
         }
-      } catch (e) {
-        console.warn('Storage access blocked or unavailable.');
-      }
+      } catch (e) {}
       
       applyThresholdToDOM();
-      
-      // ブラウザのUI自動キャッシュ上書き対策（遅延適用）
       setTimeout(applyThresholdToDOM, 50);
     }
 
-    // 値の保存
     function saveThreshold(val) {
       soundThreshold = Number(val);
       thresholdVal.textContent = soundThreshold;
@@ -132,18 +137,14 @@
       } catch (e) {}
     }
 
-    // ページロード時の最終適用
     window.addEventListener('load', applyThresholdToDOM);
     
-    // スライダーの全操作タイミングで保存を走らせる
     thresholdSlider.addEventListener('input', (e) => saveThreshold(e.target.value));
     thresholdSlider.addEventListener('change', (e) => saveThreshold(e.target.value));
     thresholdSlider.addEventListener('touchend', (e) => saveThreshold(e.target.value));
 
-    // 即時読み込み実行
     initStorage();
 
-    // モーダルの開閉
     micSettingsBtn.addEventListener('click', () => {
       settingsModal.style.display = 'flex';
     });
@@ -290,7 +291,7 @@
       }
     }
 
-    // --- 撫でるアクションの判定（25回以上でぐるる） ---
+    // --- 撫でるアクションの判定 ---
     let moveCount = 0;
     let petTimer = null;
     let lastEventTime = 0;
@@ -361,7 +362,9 @@
     startBtn.addEventListener('click', async () => {
       startBtn.style.display = 'none';
       face.style.display = 'flex';
-      micSettingsBtn.style.display = 'block';
+      
+      // ボタン表示時に flex で展開することでサイズ潰れを防止
+      micSettingsBtn.style.display = 'flex';
 
       try {
         globalAudioContext = new (window.AudioContext || window.webkitAudioContext)();
