@@ -21,13 +21,16 @@
     .eye-blink-open { width: 48px; height: 48px; transition: all 0.1s !important; }
   </style>
 </head>
-<body class="h-screen w-screen flex items-center justify-center relative">
+<body class="h-screen w-screen flex flex-col items-center justify-between py-6 px-4 relative overflow-hidden">
+
+  <!-- 上部スペーサー（中央寄せ用） -->
+  <div class="h-10"></div>
 
   <button id="start-btn" class="px-6 py-3 border border-amber-500 text-amber-500 rounded-full hover:bg-amber-500 hover:text-black transition flex items-center justify-center z-10 text-lg font-bold">
     ムクを起こす
   </button>
 
-  <div id="muku-face" style="display: none;" class="flex-col items-center justify-center gap-8 w-full h-full">
+  <div id="muku-face" style="display: none;" class="flex-col items-center justify-center gap-8 w-full flex-grow">
     <div class="flex gap-14">
       <div class="flex items-center justify-center w-12 h-12"><div id="eye-l" class="eye eye-normal"></div></div>
       <div class="flex items-center justify-center w-12 h-12"><div id="eye-r" class="eye eye-normal"></div></div>
@@ -37,15 +40,17 @@
     </svg>
   </div>
 
-  <!-- 画面下部のマイクアイコン（初期状態から確実に配置） -->
-  <button id="mic-settings-btn" style="display: none;" class="absolute bottom-6 left-1/2 -translate-x-1/2 text-amber-500/80 hover:text-amber-400 transition p-3 z-30 bg-neutral-900/80 rounded-full border border-amber-500/30 backdrop-blur-sm shadow-lg">
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
-      <path d="M19 10v1a7 7 0 0 1-14 0v-1"></path>
-      <line x1="12" y1="19" x2="12" y2="23"></line>
-      <line x1="8" y1="23" x2="16" y2="23"></line>
-    </svg>
-  </button>
+  <!-- 画面下部のマイクアイコン（レイアウト内に確実に収まるよう配置） -->
+  <div class="h-14 flex items-center justify-center z-30">
+    <button id="mic-settings-btn" style="display: none;" class="text-amber-500/80 hover:text-amber-400 transition p-3 bg-neutral-900/80 rounded-full border border-amber-500/30 backdrop-blur-sm shadow-lg">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+        <path d="M19 10v1a7 7 0 0 1-14 0v-1"></path>
+        <line x1="12" y1="19" x2="12" y2="23"></line>
+        <line x1="8" y1="23" x2="16" y2="23"></line>
+      </svg>
+    </button>
+  </div>
 
   <!-- 感度調整モーダル -->
   <div id="settings-modal" style="display: none;" class="absolute inset-0 bg-black/80 backdrop-blur-sm items-center justify-center z-40">
@@ -85,8 +90,8 @@
     let masterGain = null;
     let isPlayingSound = false;
     let isPurring = false;
-    let soundThreshold = 140; // 初期値を140に引き上げ
-    let lastAttentionTime = 0; // クールダウン用タイムスタンプ
+    let soundThreshold = 140;
+    let lastAttentionTime = 0;
 
     micSettingsBtn.addEventListener('click', () => {
       settingsModal.style.display = 'flex';
@@ -308,7 +313,7 @@
     startBtn.addEventListener('click', async () => {
       startBtn.style.display = 'none';
       face.style.display = 'flex';
-      micSettingsBtn.style.display = 'block'; // マイクアイコンを強制表示
+      micSettingsBtn.style.display = 'block';
 
       try {
         globalAudioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -345,7 +350,6 @@
           const volume = Math.max(...dataArray);
 
           const nowTime = Date.now();
-          // volumeがしきい値を超えていても、前回の発動から8秒以上経過していなければ反応しない（無限ループ防止）
           if (volume > soundThreshold && (nowTime - lastAttentionTime > 8000)) {
             lastAttentionTime = nowTime;
             setEmotion('attention');
@@ -365,7 +369,6 @@
 
       } catch (err) {
         console.error("マイクのアクセスが拒否されました", err);
-        // マイクが拒否やエラーでも顔の表示とマイクアイコン（設定用）は使えるように維持
       }
     });
   </script>
