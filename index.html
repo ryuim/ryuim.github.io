@@ -11,14 +11,15 @@
     .eye { transition: all 0.7s ease-in-out; background-color: #f59e0b; border-radius: 50%; }
     .mouth { transition: all 0.7s ease-in-out; stroke: #f59e0b; fill: transparent; stroke-width: 3; stroke-linecap: round; }
     
-    .eye-normal { width: 36px !important; height: 36px !important; }
-    .eye-relax { width: 36px !important; height: 9px !important; margin-top: 12px !important; }
-    .eye-attention { width: 48px !important; height: 48px !important; }
-    .eye-sleepy { width: 36px !important; height: 3px !important; margin-top: 18px !important; opacity: 0.3; background-color: #b45309; }
-    .eye-happy { width: 36px !important; height: 18px !important; border-radius: 36px 36px 0 0 !important; margin-top: 9px !important; }
+    /* 画面幅（vw）を基準にして横幅いっぱいに広げる */
+    .eye-normal { width: 30vw !important; height: 30vw !important; }
+    .eye-relax { width: 30vw !important; height: 8vw !important; margin-top: 11vw !important; }
+    .eye-attention { width: 36vw !important; height: 36vw !important; }
+    .eye-sleepy { width: 30vw !important; height: 3vw !important; margin-top: 13.5vw !important; opacity: 0.3; background-color: #b45309; }
+    .eye-happy { width: 30vw !important; height: 15vw !important; border-radius: 30vw 30vw 0 0 !important; margin-top: 7.5vw !important; }
     
-    .eye-blink-closed { width: 36px !important; height: 3px !important; margin-top: 16px !important; transition: all 0.1s !important; }
-    .eye-blink-open { width: 36px !important; height: 36px !important; transition: all 0.1s !important; }
+    .eye-blink-closed { width: 30vw !important; height: 3vw !important; margin-top: 13.5vw !important; transition: all 0.1s !important; }
+    .eye-blink-open { width: 30vw !important; height: 30vw !important; transition: all 0.1s !important; }
   </style>
 </head>
 <body class="h-screen w-screen flex items-center justify-center">
@@ -27,12 +28,13 @@
     ムクを起こす
   </button>
 
-  <div id="muku-face" class="hidden flex-col items-center justify-center gap-9 w-full h-full">
-    <div class="flex gap-[60px]">
-      <div class="flex items-center justify-center w-12 h-12"><div id="eye-l" class="eye eye-normal"></div></div>
-      <div class="flex items-center justify-center w-12 h-12"><div id="eye-r" class="eye eye-normal"></div></div>
+  <div id="muku-face" class="hidden flex-col items-center justify-center gap-[10vw] w-full h-full">
+    <div class="flex gap-[15vw]">
+      <div class="flex items-center justify-center w-[30vw] h-[30vw]"><div id="eye-l" class="eye eye-normal"></div></div>
+      <div class="flex items-center justify-center w-[30vw] h-[30vw]"><div id="eye-r" class="eye eye-normal"></div></div>
     </div>
-    <svg width="60" height="30" viewBox="0 0 40 20" class="opacity-70">
+    <!-- 口も画面幅の70%まで拡大 -->
+    <svg viewBox="0 0 40 20" class="w-[70vw] h-[35vw] opacity-70">
       <path id="mouth" class="mouth" d="M 5 5 Q 12 15 20 5 Q 28 15 35 5" />
     </svg>
   </div>
@@ -48,7 +50,7 @@
     let globalAudioContext = null;
     let purrOscillator = null;
     let lfoOscillator = null; 
-    let lfoGainNode = null; // LFOの揺れ幅を制御するゲイン
+    let lfoGainNode = null; 
     let masterGain = null;
 
     function setEmotion(emotion) {
@@ -94,7 +96,6 @@
 
       lfoGainNode = globalAudioContext.createGain();
       lfoGainNode.gain.setValueAtTime(0, now);
-      // LFOの揺れ幅を滑らかに開始（立ち上がりの不自然さを軽減）
       lfoGainNode.gain.linearRampToValueAtTime(0.4, now + 0.5); 
 
       lfoOscillator.connect(lfoGainNode);
@@ -112,21 +113,17 @@
     function stopPurr() {
       if (masterGain && purrOscillator && lfoGainNode) {
         const now = globalAudioContext.currentTime;
-        const lfoFadeOutTime = 1.5;    // まずLFO（揺れ）を1.5秒かけて消す
-        const masterFadeOutTime = 1.0; // その後、マスター音量を1.0秒かけて消す
+        const lfoFadeOutTime = 1.5;    
+        const masterFadeOutTime = 1.0; 
         const totalFadeOutTime = lfoFadeOutTime + masterFadeOutTime;
         
-        // 1. LFO（揺れ）のフェードアウト
         lfoGainNode.gain.cancelScheduledValues(now);
         lfoGainNode.gain.setValueAtTime(lfoGainNode.gain.value, now);
         lfoGainNode.gain.linearRampToValueAtTime(0, now + lfoFadeOutTime);
 
-        // 2. LFOが消えた後、マスターゲインのフェードアウトを開始
         masterGain.gain.cancelScheduledValues(now);
-        // LFOフェードアウト中はマスター音量を維持
         masterGain.gain.setValueAtTime(masterGain.gain.value, now); 
         masterGain.gain.setValueAtTime(masterGain.gain.value, now + lfoFadeOutTime);
-        // その後、ゆっくりとゼロへ
         masterGain.gain.linearRampToValueAtTime(0, now + totalFadeOutTime);
         
         const oldPurrOsc = purrOscillator;
