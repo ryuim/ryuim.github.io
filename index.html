@@ -23,7 +23,7 @@
 </head>
 <body class="h-screen w-screen flex items-center justify-center relative">
 
-  <button id="start-btn" class="px-4 py-2 border border-amber-500 text-amber-500 rounded-full hover:bg-amber-500 hover:text-black transition flex items-center justify-center">
+  <button id="start-btn" class="px-4 py-2 border border-amber-500 text-amber-500 rounded-full hover:bg-amber-500 hover:text-black transition flex items-center justify-center z-10">
     ムクを起こす
   </button>
 
@@ -37,8 +37,8 @@
     </svg>
   </div>
 
-  <!-- 画面下部のマイクアイコン（初期状態は非表示） -->
-  <button id="mic-settings-btn" class="hidden absolute bottom-5 left-1/2 -translate-x-1/2 text-amber-500/60 hover:text-amber-500 transition p-3 z-20">
+  <!-- 画面下部のマイクアイコン（初期状態はインラインスタイルで完全に非表示） -->
+  <button id="mic-settings-btn" style="display: none;" class="absolute bottom-6 left-1/2 -translate-x-1/2 text-amber-500/60 hover:text-amber-500 transition p-3 z-30 bg-neutral-900/50 rounded-full border border-amber-500/20 backdrop-blur-sm">
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
       <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
       <path d="M19 10v1a7 7 0 0 1-14 0v-1"></path>
@@ -48,7 +48,7 @@
   </button>
 
   <!-- 感度調整モーダル -->
-  <div id="settings-modal" class="hidden absolute inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-30">
+  <div id="settings-modal" style="display: none;" class="absolute inset-0 bg-black/80 backdrop-blur-sm items-center justify-center z-40">
     <div class="bg-neutral-900 border border-amber-500/30 p-6 rounded-2xl w-80 text-center flex flex-col gap-4 shadow-2xl">
       <h3 class="text-amber-500 font-bold text-lg">マイク感度調整</h3>
       <div class="flex flex-col gap-2">
@@ -82,14 +82,14 @@
     let masterGain = null;
     let isPlayingSound = false;
     let isPurring = false;
-    let soundThreshold = 70; // デフォルトのしきい値
+    let soundThreshold = 70;
 
-    // 設定モーダルの開閉
+    // 設定モーダルの開閉（style.displayで確実に制御）
     micSettingsBtn.addEventListener('click', () => {
-      settingsModal.classList.remove('hidden');
+      settingsModal.style.display = 'flex';
     });
     closeModalBtn.addEventListener('click', () => {
-      settingsModal.classList.add('hidden');
+      settingsModal.style.display = 'none';
     });
     thresholdSlider.addEventListener('input', (e) => {
       soundThreshold = Number(e.target.value);
@@ -303,10 +303,9 @@
 
     // --- 初期化処理 ---
     startBtn.addEventListener('click', async () => {
-      startBtn.classList.add('hidden');
-      face.classList.remove('hidden');
-      face.classList.add('flex');
-      micSettingsBtn.classList.remove('hidden'); // マイクアイコンを表示
+      startBtn.style.display = 'none';
+      face.style.display = 'flex';
+      micSettingsBtn.style.display = 'block'; // マイクアイコンを表示
 
       try {
         globalAudioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -342,7 +341,6 @@
           analyser.getByteFrequencyData(dataArray);
           const volume = Math.max(...dataArray);
 
-          // スライダーで動的に変わる soundThreshold を使用
           if (volume > soundThreshold) {
             setEmotion('attention');
             setTimeout(() => { 
