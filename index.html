@@ -11,7 +11,6 @@
     .eye { transition: all 0.7s ease-in-out; background-color: #f59e0b; border-radius: 50%; }
     .mouth { transition: all 0.7s ease-in-out; stroke: #f59e0b; fill: transparent; stroke-width: 3; stroke-linecap: round; }
     
-    /* 各パーツのサイズを厳密に指定（1.5倍） */
     .eye-normal { width: 36px !important; height: 36px !important; }
     .eye-relax { width: 36px !important; height: 9px !important; margin-top: 12px !important; }
     .eye-attention { width: 48px !important; height: 48px !important; }
@@ -71,12 +70,17 @@
     function startPurr() {
       if (!globalAudioContext || purrOscillator) return;
       
+      const now = globalAudioContext.currentTime;
+
       purrOscillator = globalAudioContext.createOscillator();
       purrOscillator.type = 'sawtooth';
-      purrOscillator.frequency.value = 20; // ★限界ラインの20Hzに変更
+      purrOscillator.frequency.value = 20; 
 
       purrGain = globalAudioContext.createGain();
-      purrGain.gain.value = 0.5;
+      
+      // ★開始時のポップノイズ対策（0.1秒かけて滑らかに音量を上げる）
+      purrGain.gain.setValueAtTime(0, now);
+      purrGain.gain.linearRampToValueAtTime(0.5, now + 0.1);
 
       const filter = globalAudioContext.createBiquadFilter();
       filter.type = 'lowpass';
@@ -96,27 +100,35 @@
       filter.connect(purrGain);
       purrGain.connect(globalAudioContext.destination);
 
-      purrOscillator.start();
-      lfoOscillator.start();
+      purrOscillator.start(now);
+      lfoOscillator.start(now);
     }
 
     function stopPurr() {
       if (purrGain && purrOscillator) {
-        purrGain.gain.setValueAtTime(purrGain.gain.value, globalAudioContext.currentTime);
-        purrGain.gain.linearRampToValueAtTime(0, globalAudioContext.currentTime + 1.0);
+        const now = globalAudioContext.currentTime;
+        const fadeOutTime = 1.0; // 1秒かけてフェードアウト
         
+        // ★終了時のポップノイズ対策
+        purrGain.gain.cancelScheduledValues(now); // 進行中のアニメーションをキャンセル
+        purrGain.gain.setValueAtTime(purrGain.gain.value, now); // 現在の音量を起点にする
+        purrGain.gain.linearRampToValueAtTime(0, now + fadeOutTime); // 1秒後に完全にゼロにする
+        
+        // JSのアバウトなタイマーではなく、AudioContextの正確な時間で停止させる
+        purrOscillator.stop(now + fadeOutTime);
+        if (lfoOscillator) lfoOscillator.stop(now + fadeOutTime);
+        
+        // 音が完全に消えてからメモリを解放（余裕を見て1.1秒後）
         setTimeout(() => {
           if (purrOscillator) {
-            purrOscillator.stop();
             purrOscillator.disconnect();
             purrOscillator = null;
           }
           if (lfoOscillator) {
-            lfoOscillator.stop();
             lfoOscillator.disconnect();
             lfoOscillator = null;
           }
-        }, 1000);
+        }, (fadeOutTime + 0.1) * 1000);
       }
     }
 
