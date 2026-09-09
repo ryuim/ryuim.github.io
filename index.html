@@ -87,7 +87,7 @@
           analyser.getByteFrequencyData(dataArray);
           const volume = Math.max(...dataArray);
           
-          if (volume > 70) {
+          if (volume > 50) {
             setEmotion('attention');
             setTimeout(() => setEmotion('normal'), 3000);
           } else if (battery && battery.charging) {
