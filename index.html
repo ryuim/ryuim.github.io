@@ -51,7 +51,7 @@
     let lfoGainNode = null; 
     let masterGain = null;
     let isPlayingSound = false;
-    let isPurring = false; // ゴロゴロ中かどうかのフラグ
+    let isPurring = false;
 
     // --- 単発の可愛い鳴き声関数 ---
     async function playCuteSound() {
@@ -82,7 +82,6 @@
       oscillator.start(now);
       oscillator.stop(now + 0.21);
 
-      // 鳴き終わったら少し余裕を持たせてフラグを解除
       setTimeout(() => {
         isPlayingSound = false;
       }, 500);
@@ -91,7 +90,6 @@
     function setEmotion(emotion) {
       if (currentEmotion === emotion) return;
       
-      // 目を大きく見開く（attention）瞬間に1回だけ鳴く
       if (emotion === 'attention') {
         playCuteSound();
       }
@@ -114,7 +112,7 @@
     function startPurr() {
       if (!globalAudioContext || purrOscillator) return;
       
-      isPurring = true; // ゴロゴロ中フラグをON（マイクの誤反応を防止）
+      isPurring = true;
       const now = globalAudioContext.currentTime;
 
       purrOscillator = globalAudioContext.createOscillator();
@@ -186,7 +184,7 @@
           if (oldLfoOsc) oldLfoOsc.disconnect();
           if (oldMasterGain) oldMasterGain.disconnect();
           if (oldLfoGain) oldLfoGain.disconnect();
-          isPurring = false; // 音が完全に消えてからフラグを解除
+          isPurring = false;
         }, (totalFadeOutTime + 0.1) * 1000);
       } else {
         isPurring = false;
@@ -272,7 +270,6 @@
           await globalAudioContext.resume();
         }
 
-        // 起床時：パチクリと、2回連続で鳴く
         playWakeUpBlink();
         playCuteSound();
         setTimeout(() => {
@@ -295,14 +292,14 @@
         const dataArray = new Uint8Array(analyser.frequencyBinCount);
 
         setInterval(() => {
-          // 鳴き声再生中、ゴロゴロ中、またはhappy/attention状態のときはマイク監視をスキップ
           if (isPlayingSound || isPurring || currentEmotion === 'happy' || currentEmotion === 'attention') return;
 
           const hour = new Date().getHours();
           analyser.getByteFrequencyData(dataArray);
           const volume = Math.max(...dataArray);
 
-          if (volume > 50) {
+          // ★感度を調整（70に変更）
+          if (volume > 70) {
             setEmotion('attention');
             setTimeout(() => { 
               if(currentEmotion === 'attention') setEmotion('normal'); 
@@ -313,7 +310,7 @@
             setEmotion('sleepy');
           } else if (hour >= 23 || hour < 5) {
             setEmotion('sleepy');
-          } else if (currentEmotion !== 'normal' && volume <= 50) {
+          } else if (currentEmotion !== 'normal' && volume <= 70) {
             setEmotion('normal');
           }
         }, 1000);
