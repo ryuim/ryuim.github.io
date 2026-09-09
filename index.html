@@ -16,6 +16,10 @@
     .eye-attention { width: 32px; height: 32px; }
     .eye-sleepy { width: 24px; height: 2px; margin-top: 12px; opacity: 0.3; background-color: #b45309; }
     .eye-happy { width: 24px; height: 12px; border-radius: 24px 24px 0 0; margin-top: 6px; }
+    
+    /* パチクリ（まばたき）用のアニメーションクラス */
+    .eye-blink-closed { width: 24px; height: 2px; margin-top: 11px; transition: all 0.1s !important; }
+    .eye-blink-open { width: 24px; height: 24px; transition: all 0.1s !important; }
   </style>
 </head>
 <body class="h-screen w-screen flex items-center justify-center">
@@ -67,7 +71,6 @@
     function startPurr() {
       if (!globalAudioContext || purrOscillator) return;
       
-      // 音の高さを35Hzに変更
       purrOscillator = globalAudioContext.createOscillator();
       purrOscillator.type = 'sawtooth';
       purrOscillator.frequency.value = 35; 
@@ -77,8 +80,7 @@
 
       const filter = globalAudioContext.createBiquadFilter();
       filter.type = 'lowpass';
-      //filter.frequency.value = 400; 
-      filter.frequency.value = 200; 
+      filter.frequency.value = 180; // ★400Hzから180Hzに変更（より低くこもった音に）
 
       lfoOscillator = globalAudioContext.createOscillator();
       lfoOscillator.type = 'sine';
@@ -149,11 +151,37 @@
     face.addEventListener('touchmove', handlePet, { passive: true });
     face.addEventListener('mousemove', handlePet);
 
+    // --- 起床時のパチクリ（まばたき）アニメーション ---
+    function playWakeUpBlink() {
+      let count = 0;
+      const blinkInterval = setInterval(() => {
+        if (count % 2 === 0) {
+          eyeL.className = 'eye eye-blink-closed';
+          eyeR.className = 'eye eye-blink-closed';
+        } else {
+          eyeL.className = 'eye eye-blink-open';
+          eyeR.className = 'eye eye-blink-open';
+        }
+        count++;
+        
+        if (count >= 4) { // 2回まばたき（閉・開・閉・開）
+          clearInterval(blinkInterval);
+          setTimeout(() => {
+            eyeL.className = `eye eye-${currentEmotion}`;
+            eyeR.className = `eye eye-${currentEmotion}`;
+          }, 150);
+        }
+      }, 150); // 0.15秒間隔で切り替え
+    }
+
     // --- 初期化処理 ---
     startBtn.addEventListener('click', async () => {
       startBtn.classList.add('hidden');
       face.classList.remove('hidden');
       face.classList.add('flex');
+
+      // ★顔が表示された直後にパチクリさせる
+      playWakeUpBlink();
 
       let battery = null;
       if ('getBattery' in navigator) {
