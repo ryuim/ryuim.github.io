@@ -67,10 +67,10 @@
     function startPurr() {
       if (!globalAudioContext || purrOscillator) return;
       
-      // 音の高さを45Hzに変更
+      // 音の高さを40Hzに変更
       purrOscillator = globalAudioContext.createOscillator();
       purrOscillator.type = 'sawtooth';
-      purrOscillator.frequency.value = 45; 
+      purrOscillator.frequency.value = 40; 
 
       purrGain = globalAudioContext.createGain();
       purrGain.gain.value = 0.5;
@@ -79,7 +79,6 @@
       filter.type = 'lowpass';
       filter.frequency.value = 400; 
 
-      // テンポを 1.0 に変更
       lfoOscillator = globalAudioContext.createOscillator();
       lfoOscillator.type = 'sine';
       lfoOscillator.frequency.value = 1.0; 
@@ -100,7 +99,11 @@
 
     function stopPurr() {
       if (purrGain && purrOscillator) {
-        purrGain.gain.setTargetAtTime(0, globalAudioContext.currentTime, 0.5);
+        // 現在の音量を保持し、1秒かけて0までフェードアウトする
+        purrGain.gain.setValueAtTime(purrGain.gain.value, globalAudioContext.currentTime);
+        purrGain.gain.linearRampToValueAtTime(0, globalAudioContext.currentTime + 1.0);
+        
+        // 1秒後に完全に処理を停止
         setTimeout(() => {
           if (purrOscillator) {
             purrOscillator.stop();
@@ -112,7 +115,7 @@
             lfoOscillator.disconnect();
             lfoOscillator = null;
           }
-        }, 500);
+        }, 1000);
       }
     }
 
@@ -124,26 +127,23 @@
     function handlePet(e) {
       const now = Date.now();
       
-      // 指の動きが一瞬（300ms）以上止まってから再び動いたら「1回の撫で」とカウント
       if (now - lastMoveTime > 300) {
         petStrokeCount++;
       }
       lastMoveTime = now;
 
-      // 2回撫でたら喜ぶ
       if (petStrokeCount >= 2 && currentEmotion !== 'happy') {
         setEmotion('happy');
         startPurr();
       }
 
-      // 撫でるのをやめてから1秒後にリセット
       clearTimeout(petTimer);
       petTimer = setTimeout(() => {
         if (currentEmotion === 'happy') {
           setEmotion('normal');
           stopPurr();
         }
-        petStrokeCount = 0; // カウントもリセット
+        petStrokeCount = 0; 
       }, 1000);
     }
 
