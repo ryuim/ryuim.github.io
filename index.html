@@ -52,7 +52,7 @@
     let masterGain = null;
     let isPlayingSound = false;
 
-    // --- 単発の可愛い鳴き声関数 ---
+    // --- 単発の可愛い鳴き声関数（完全な単発保証） ---
     async function playCuteSound() {
       if (!globalAudioContext || isPlayingSound) return;
       isPlayingSound = true;
@@ -81,15 +81,16 @@
       oscillator.start(now);
       oscillator.stop(now + 0.21);
 
+      // 音の長さ（約0.21秒）より長くロックをかけ、絶対に連続発火させない
       setTimeout(() => {
         isPlayingSound = false;
-      }, 250);
+      }, 400);
     }
 
     function setEmotion(emotion) {
       if (currentEmotion === emotion) return;
       
-      // 目を大きく見開く（attention）時に1回鳴く
+      // 目を大きく見開く（attention）瞬間に1回だけ鳴く
       if (emotion === 'attention') {
         playCuteSound();
       }
@@ -206,7 +207,6 @@
       }
 
       if (moveCount >= 35) {
-        // ぐるる...が始まる前に1回だけ鳴く
         if (!hasPlayedPurrSound) {
           playCuteSound();
           hasPlayedPurrSound = true;
@@ -229,7 +229,10 @@
     face.addEventListener('mousemove', handlePet);
 
     // --- 起床時のパチクリ ---
+    let isBlinking = false;
     function playWakeUpBlink() {
+      if (isBlinking) return;
+      isBlinking = true;
       let count = 0;
       const blinkInterval = setInterval(() => {
         if (count % 2 === 0) {
@@ -246,6 +249,7 @@
           setTimeout(() => {
             eyeL.className = `eye eye-${currentEmotion}`;
             eyeR.className = `eye eye-${currentEmotion}`;
+            isBlinking = false;
           }, 150);
         }
       }, 150);
@@ -268,7 +272,7 @@
         playCuteSound();
         setTimeout(() => {
           playCuteSound();
-        }, 350);
+        }, 400);
 
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         let battery = null;
@@ -284,7 +288,8 @@
         const dataArray = new Uint8Array(analyser.frequencyBinCount);
 
         setInterval(() => {
-          if (currentEmotion === 'happy') return;
+          // すでにhappy（笑顔）またはattention（見開き中）のときは環境音による上書きをしない
+          if (currentEmotion === 'happy' || currentEmotion === 'attention') return;
 
           const hour = new Date().getHours();
           analyser.getByteFrequencyData(dataArray);
@@ -292,7 +297,10 @@
 
           if (volume > 50) {
             setEmotion('attention');
-            setTimeout(() => { if(currentEmotion === 'attention') setEmotion('normal') }, 3000);
+            setTimeout(() => { 
+              // 3秒後に、もしまだattentionのままならnormalに戻す
+              if(currentEmotion === 'attention') setEmotion('normal'); 
+            }, 3000);
           } else if (battery && battery.charging) {
             setEmotion('relax');
           } else if (battery && battery.level <= 0.2 && !battery.charging) {
