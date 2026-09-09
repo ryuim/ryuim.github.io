@@ -85,9 +85,9 @@
         setInterval(() => {
           const hour = new Date().getHours();
           analyser.getByteFrequencyData(dataArray);
-          const volume = dataArray.reduce((a, b) => a + b) / dataArray.length;
-
-          if (volume > 40) {
+          const volume = Math.max(...dataArray);
+          
+          if (volume > 70) {
             setEmotion('attention');
             setTimeout(() => setEmotion('normal'), 3000);
           } else if (battery && battery.charging) {
