@@ -48,7 +48,7 @@
     </svg>
   </div>
 
-  <!-- マイク設定ボタン：絶対に切れない「画面右上（トップ右）」に固定配置 -->
+  <!-- マイク設定ボタン：画面右上 -->
   <button id="mic-settings-btn" style="display: none; position: fixed; top: 16px; right: 16px;" class="text-amber-500/90 hover:text-amber-400 transition p-3.5 z-50 bg-neutral-900/90 rounded-full border border-amber-500/40 backdrop-blur-md shadow-2xl">
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
       <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
@@ -98,6 +98,7 @@
     let isPurring = false;
     let soundThreshold = 140;
     let lastAttentionTime = 0;
+    let attentionTimer = null; // attention復帰タイマー管理用
 
     micSettingsBtn.addEventListener('click', () => {
       settingsModal.style.display = 'flex';
@@ -145,12 +146,8 @@
     }
 
     function setEmotion(emotion) {
-      if (currentEmotion === emotion) return;
+      if (currentEmotion === emotion && emotion !== 'attention') return;
       
-      if (emotion === 'attention') {
-        playCuteSound();
-      }
-
       currentEmotion = emotion;
 
       eyeL.className = `eye eye-${emotion}`;
@@ -319,7 +316,7 @@
     startBtn.addEventListener('click', async () => {
       startBtn.style.display = 'none';
       face.style.display = 'flex';
-      micSettingsBtn.style.display = 'block'; // 右上に確実に表示
+      micSettingsBtn.style.display = 'block';
 
       try {
         globalAudioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -349,7 +346,7 @@
         const dataArray = new Uint8Array(analyser.frequencyBinCount);
 
         setInterval(() => {
-          if (isPlayingSound || isPurring || currentEmotion === 'happy' || currentEmotion === 'attention') return;
+          if (isPlayingSound || isPurring || currentEmotion === 'happy') return;
 
           const hour = new Date().getHours();
           analyser.getByteFrequencyData(dataArray);
@@ -359,17 +356,26 @@
           if (volume > soundThreshold && (nowTime - lastAttentionTime > 8000)) {
             lastAttentionTime = nowTime;
             setEmotion('attention');
-            setTimeout(() => { 
-              if(currentEmotion === 'attention') setEmotion('normal'); 
+            playCuteSound();
+
+            // 既存のタイマーをクリアして確実に3秒後に通常状態に戻す
+            clearTimeout(attentionTimer);
+            attentionTimer = setTimeout(() => { 
+              if (currentEmotion === 'attention') {
+                setEmotion('normal');
+              }
             }, 3000);
-          } else if (battery && battery.charging) {
-            setEmotion('relax');
-          } else if (battery && battery.level <= 0.2 && !battery.charging) {
-            setEmotion('sleepy');
-          } else if (hour >= 23 || hour < 5) {
-            setEmotion('sleepy');
-          } else if (currentEmotion !== 'normal' && volume <= soundThreshold) {
-            setEmotion('normal');
+
+          } else if (currentEmotion !== 'attention') {
+            if (battery && battery.charging) {
+              setEmotion('relax');
+            } else if (battery && battery.level <= 0.2 && !battery.charging) {
+              setEmotion('sleepy');
+            } else if (hour >= 23 || hour < 5) {
+              setEmotion('sleepy');
+            } else if (currentEmotion !== 'normal' && volume <= soundThreshold) {
+              setEmotion('normal');
+            }
           }
         }, 1000);
 
