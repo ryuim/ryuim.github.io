@@ -4,11 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>MUKU</title>
-  <!-- デザイン用にTailwind CSSを読み込み -->
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    body { background-color: #000; color: white; margin: 0; overflow: hidden; user-select: none; }
-    /* ムクのパーツのアニメーション設定 */
+    body { background-color: #000; color: white; margin: 0; overflow: hidden; user-select: none; touch-action: none; }
+    
     .eye { transition: all 0.7s ease-in-out; background-color: #f59e0b; border-radius: 50%; }
     .mouth { transition: all 0.7s ease-in-out; stroke: #f59e0b; fill: transparent; stroke-width: 3; stroke-linecap: round; }
     
@@ -17,6 +16,7 @@
     .eye-relax { width: 24px; height: 6px; margin-top: 8px; }
     .eye-attention { width: 32px; height: 32px; }
     .eye-sleepy { width: 24px; height: 2px; margin-top: 12px; opacity: 0.3; background-color: #b45309; }
+    .eye-happy { width: 24px; height: 12px; border-radius: 24px 24px 0 0; margin-top: 6px; } /* にっこり目 */
   </style>
 </head>
 <body class="h-screen w-screen flex items-center justify-center">
@@ -43,22 +43,42 @@
     const mouth = document.getElementById('mouth');
 
     let currentEmotion = 'normal';
+    let petCount = 0;
+    let petTimer = null;
 
     function setEmotion(emotion) {
       if (currentEmotion === emotion) return;
       currentEmotion = emotion;
 
-      // 目のクラスを切り替え
       eyeL.className = `eye eye-${emotion}`;
       eyeR.className = `eye eye-${emotion}`;
 
-      // 口の形を切り替え
       if (emotion === 'relax') {
-        mouth.setAttribute('d', 'M 5 10 Q 12 15 20 10 Q 28 15 35 10');
+        mouth.setAttribute('d', 'M 5 10 Q 12 15 20 10 Q 28 15 35 10'); // ゆるんだ口
+      } else if (emotion === 'happy') {
+        mouth.setAttribute('d', 'M 5 5 Q 20 20 35 5'); // 大きく開いた口
       } else {
-        mouth.setAttribute('d', 'M 5 5 Q 12 15 20 5 Q 28 15 35 5');
+        mouth.setAttribute('d', 'M 5 5 Q 12 15 20 5 Q 28 15 35 5'); // 通常の口
       }
     }
+
+    // 撫でるアクションの検知
+    function handlePet() {
+      petCount++;
+      if (petCount > 10) { // 連続で指を動かしたら反応
+        setEmotion('happy');
+        clearTimeout(petTimer);
+        
+        // 撫で終わってから2秒後に通常状態へ戻す
+        petTimer = setTimeout(() => {
+          petCount = 0;
+          setEmotion('normal');
+        }, 2000);
+      }
+    }
+
+    face.addEventListener('touchmove', handlePet, { passive: true });
+    face.addEventListener('mousemove', handlePet); // PC確認用
 
     startBtn.addEventListener('click', async () => {
       startBtn.classList.add('hidden');
@@ -71,7 +91,6 @@
       }
 
       try {
-        // マイクの許可を要求
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         const audioContext = new (window.AudioContext || window.webkitAudioContext)();
         const analyser = audioContext.createAnalyser();
@@ -81,22 +100,23 @@
         analyser.fftSize = 256;
         const dataArray = new Uint8Array(analyser.frequencyBinCount);
 
-        // 1秒ごとに状態をチェック
         setInterval(() => {
+          if (currentEmotion === 'happy') return; // 喜んでいる最中は他の感情（音や時間）で上書きしない
+
           const hour = new Date().getHours();
           analyser.getByteFrequencyData(dataArray);
           const volume = Math.max(...dataArray);
-          
+
           if (volume > 50) {
             setEmotion('attention');
-            setTimeout(() => setEmotion('normal'), 3000);
+            setTimeout(() => { if(currentEmotion === 'attention') setEmotion('normal') }, 3000);
           } else if (battery && battery.charging) {
             setEmotion('relax');
           } else if (battery && battery.level <= 0.2 && !battery.charging) {
             setEmotion('sleepy');
           } else if (hour >= 23 || hour < 5) {
             setEmotion('sleepy');
-          } else if (currentEmotion !== 'normal' && volume <= 40) {
+          } else if (currentEmotion !== 'normal' && volume <= 70) {
             setEmotion('normal');
           }
         }, 1000);
