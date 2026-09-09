@@ -9,36 +9,32 @@
     body { background-color: #000; color: white; margin: 0; overflow: hidden; user-select: none; touch-action: none; }
     
     .eye { transition: all 0.7s ease-in-out; background-color: #f59e0b; border-radius: 50%; }
-    .mouth { transition: all 0.7s ease-in-out; stroke: #f59e0b; fill: transparent; stroke-width: 3; stroke-linecap: round; }
+    .mouth { transition: all 0.7s ease-in-out; stroke: #f59e0b; fill: transparent; stroke-width: 5; stroke-linecap: round; }
     
-    .eye-normal { width: 36px; height: 36px; }
-    .eye-relax { width: 36px; height: 9px; margin-top: 12px; }
-    .eye-attention { width: 48px; height: 48px; }
-    .eye-sleepy { width: 36px; height: 3px; margin-top: 18px; opacity: 0.3; background-color: #b45309; }
-    .eye-happy { width: 36px; height: 18px; border-radius: 36px 36px 0 0; margin-top: 9px; }
+    /* バランスを完全維持したまま各パーツを大きく拡大 */
+    .eye-normal { width: 72px; height: 72px; }
+    .eye-relax { width: 72px; height: 18px; margin-top: 27px; }
+    .eye-attention { width: 96px; height: 96px; }
+    .eye-sleepy { width: 72px; height: 6px; margin-top: 36px; opacity: 0.3; background-color: #b45309; }
+    .eye-happy { width: 72px; height: 36px; border-radius: 72px 72px 0 0; margin-top: 18px; }
     
-    .eye-blink-closed { width: 36px; height: 3px; margin-top: 16px; transition: all 0.1s !important; }
-    .eye-blink-open { width: 36px; height: 36px; transition: all 0.1s !important; }
-
-    /* 元の綺麗なバランスを保ったまま、画面サイズに合わせて全体を2.2倍に拡大 */
-    #muku-face {
-      transform: scale(2.2);
-      transform-origin: center center;
-    }
+    .eye-blink-closed { width: 72px; height: 6px; margin-top: 33px; transition: all 0.1s !important; }
+    .eye-blink-open { width: 72px; height: 72px; transition: all 0.1s !important; }
   </style>
 </head>
 <body class="h-screen w-screen flex items-center justify-center">
 
-  <button id="start-btn" class="px-4 py-2 border border-amber-500 text-amber-500 rounded-full hover:bg-amber-500 hover:text-black transition flex items-center justify-center">
+  <button id="start-btn" class="px-6 py-3 border border-amber-500 text-amber-500 rounded-full hover:bg-amber-500 hover:text-black transition flex items-center justify-center text-lg">
     ムクを起こす
   </button>
 
-  <div id="muku-face" class="hidden flex-col items-center justify-center gap-6 w-full h-full">
-    <div class="flex gap-10">
-      <div class="flex items-center justify-center w-8 h-8"><div id="eye-l" class="eye eye-normal"></div></div>
-      <div class="flex items-center justify-center w-8 h-8"><div id="eye-r" class="eye eye-normal"></div></div>
+  <!-- 比率を保ったまま隙間を拡大 -->
+  <div id="muku-face" class="hidden flex-col items-center justify-center gap-12 w-full h-full">
+    <div class="flex gap-20">
+      <div class="flex items-center justify-center w-[72px] h-[72px]"><div id="eye-l" class="eye eye-normal"></div></div>
+      <div class="flex items-center justify-center w-[72px] h-[72px]"><div id="eye-r" class="eye eye-normal"></div></div>
     </div>
-    <svg width="40" height="20" viewBox="0 0 40 20" class="opacity-70">
+    <svg width="100" height="50" viewBox="0 0 40 20" class="opacity-70">
       <path id="mouth" class="mouth" d="M 5 5 Q 12 15 20 5 Q 28 15 35 5" />
     </svg>
   </div>
