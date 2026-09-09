@@ -17,7 +17,6 @@
     .eye-sleepy { width: 24px; height: 2px; margin-top: 12px; opacity: 0.3; background-color: #b45309; }
     .eye-happy { width: 24px; height: 12px; border-radius: 24px 24px 0 0; margin-top: 6px; }
     
-    /* パチクリ（まばたき）用のアニメーションクラス */
     .eye-blink-closed { width: 24px; height: 2px; margin-top: 11px; transition: all 0.1s !important; }
     .eye-blink-open { width: 24px; height: 24px; transition: all 0.1s !important; }
   </style>
@@ -120,43 +119,46 @@
       }
     }
 
-    // --- 撫でるアクションの判定（2段階） ---
-    let lastMoveTime = 0;
-    let petStrokeCount = 0;
+    // --- 撫でるアクションの判定（連続移動量による2段階） ---
+    let moveCount = 0;
     let petTimer = null;
+    let lastEventTime = 0;
 
     function handlePet(e) {
       const now = Date.now();
       
-      if (now - lastMoveTime > 300) {
-        petStrokeCount++;
-      }
-      lastMoveTime = now;
+      // 端末ごとのイベント頻度のブレを吸収（30ms間隔に調整）
+      if (now - lastEventTime < 30) return;
+      lastEventTime = now;
 
-      // 1段階目：2回撫でたら表情がにっこり変わる
-      if (petStrokeCount >= 2 && currentEmotion !== 'happy') {
+      // 指が動いた回数をカウント
+      moveCount++;
+
+      // 1段階目（少し撫でた：約2ストローク相当）
+      if (moveCount >= 10 && currentEmotion !== 'happy') {
         setEmotion('happy');
       }
 
-      // 2段階目：5回撫でたらぐるる音が鳴り始める
-      if (petStrokeCount >= 5) {
+      // 2段階目（しっかり撫で続けた：約5ストローク相当）
+      if (moveCount >= 35) {
         startPurr();
       }
 
+      // 指が止まってから1秒後にリセット
       clearTimeout(petTimer);
       petTimer = setTimeout(() => {
         if (currentEmotion === 'happy') {
           setEmotion('normal');
         }
         stopPurr();
-        petStrokeCount = 0; 
+        moveCount = 0; // カウントをゼロに戻す
       }, 1000);
     }
 
     face.addEventListener('touchmove', handlePet, { passive: true });
     face.addEventListener('mousemove', handlePet);
 
-    // --- 起床時のパチクリ（まばたき）アニメーション ---
+    // --- 起床時のパチクリ ---
     function playWakeUpBlink() {
       let count = 0;
       const blinkInterval = setInterval(() => {
