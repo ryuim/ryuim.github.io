@@ -44,7 +44,7 @@
     let currentEmotion = 'normal';
     let globalAudioContext = null;
     let purrOscillator = null;
-    let lfoOscillator = null; // リズム用
+    let lfoOscillator = null; 
     let purrGain = null;
 
     function setEmotion(emotion) {
@@ -63,37 +63,33 @@
       }
     }
 
-    // --- ゴロゴロ音（リズム付き）の合成エンジン ---
+    // --- ゴロゴロ音 ---
     function startPurr() {
       if (!globalAudioContext || purrOscillator) return;
       
-      // 基本の音（聞こえる高さの80Hz）
+      // 音の高さを60Hz（少し低く）に変更
       purrOscillator = globalAudioContext.createOscillator();
       purrOscillator.type = 'sawtooth';
-      purrOscillator.frequency.value = 80;
+      purrOscillator.frequency.value = 60; 
 
-      // 音量調整
       purrGain = globalAudioContext.createGain();
       purrGain.gain.value = 0.5;
 
-      // 高音カット
       const filter = globalAudioContext.createBiquadFilter();
       filter.type = 'lowpass';
       filter.frequency.value = 400; 
 
-      // ★追加：ぐるる、ぐるる…というリズムを作る波（1秒間に2回揺れる）
+      // テンポを 0.5（ゆっくり）に変更
       lfoOscillator = globalAudioContext.createOscillator();
       lfoOscillator.type = 'sine';
-      lfoOscillator.frequency.value = 2.0; // ここの数字を変えるとテンポが変わります
+      lfoOscillator.frequency.value = 0.5; 
 
       const lfoGain = globalAudioContext.createGain();
-      lfoGain.gain.value = 0.4; // 揺れ幅
+      lfoGain.gain.value = 0.4; 
 
-      // リズムを音量（Gain）に接続
       lfoOscillator.connect(lfoGain);
       lfoGain.connect(purrGain.gain);
 
-      // 全体の接続
       purrOscillator.connect(filter);
       filter.connect(purrGain);
       purrGain.connect(globalAudioContext.destination);
@@ -120,32 +116,34 @@
       }
     }
 
-    // --- 撫でるアクションの判定 ---
+    // --- 撫でるアクションの判定（条件緩和） ---
+    let firstPetTime = 0;
     let lastPetTime = 0;
-    let continuousPetDuration = 0;
     let petTimer = null;
 
-    function handlePet() {
+    function handlePet(e) {
       const now = Date.now();
-      if (now - lastPetTime < 300) {
-        continuousPetDuration += (now - lastPetTime);
-      } else {
-        continuousPetDuration = 0;
+      
+      // 指が1秒以上離れたら、最初のタッチ時間をリセット
+      if (now - lastPetTime > 1000) {
+        firstPetTime = now;
       }
       lastPetTime = now;
 
-      if (continuousPetDuration > 3000 && currentEmotion !== 'happy') {
+      // 撫で始めから3秒（3000ms）経過していれば喜ぶ
+      if (firstPetTime > 0 && (now - firstPetTime > 3000) && currentEmotion !== 'happy') {
         setEmotion('happy');
         startPurr();
       }
 
+      // 撫でるのをやめてから2秒後にリセット
       clearTimeout(petTimer);
       petTimer = setTimeout(() => {
-        continuousPetDuration = 0;
         if (currentEmotion === 'happy') {
           setEmotion('normal');
           stopPurr();
         }
+        firstPetTime = 0;
       }, 2000);
     }
 
@@ -181,7 +179,8 @@
           analyser.getByteFrequencyData(dataArray);
           const volume = Math.max(...dataArray);
 
-          if (volume > 70) {
+          // 感度を50に変更
+          if (volume > 50) {
             setEmotion('attention');
             setTimeout(() => { if(currentEmotion === 'attention') setEmotion('normal') }, 3000);
           } else if (battery && battery.charging) {
@@ -190,7 +189,7 @@
             setEmotion('sleepy');
           } else if (hour >= 23 || hour < 5) {
             setEmotion('sleepy');
-          } else if (currentEmotion !== 'normal' && volume <= 70) {
+          } else if (currentEmotion !== 'normal' && volume <= 50) {
             setEmotion('normal');
           }
         }, 1000);
