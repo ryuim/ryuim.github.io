@@ -33,7 +33,6 @@
     .eye-sleepy { width: 48px; height: 4px; margin-top: 24px; opacity: 0.3; background-color: #b45309; }
     .eye-happy { width: 48px; height: 24px; border-radius: 48px 48px 0 0; margin-top: 12px; }
     
-    /* パチクリ感を出すためトランジションを素早く（0.1s -> 0.05s） */
     .eye-blink-closed { width: 48px; height: 4px; margin-top: 22px; transition: all 0.05s !important; }
     .eye-blink-open { width: 48px; height: 48px; transition: all 0.05s !important; }
   </style>
@@ -350,9 +349,9 @@
     face.addEventListener('touchmove', handlePet, { passive: true });
     face.addEventListener('mousemove', handlePet);
 
-    // --- 起床時のパチクリ（ランダム回数1〜3回、スピードを速く調整） ---
+    // --- まばたきアニメーション ---
     let isBlinking = false;
-    function playWakeUpBlink() {
+    function playBlink() {
       if (isBlinking) return;
       isBlinking = true;
       
@@ -366,7 +365,6 @@
       const targetSteps = blinks * 2;
       
       let count = 0;
-      // インターバルを150msから80msに短縮し、パチクリ感を強調
       const blinkInterval = setInterval(() => {
         if (count % 2 === 0) {
           eyeL.className = 'eye eye-blink-closed';
@@ -388,6 +386,20 @@
       }, 80);
     }
 
+    // --- ランダムまばたきループ ---
+    function startRandomBlinking() {
+      // 2秒〜6秒のランダムな間隔で次のまばたきをスケジュール
+      const delay = Math.random() * 4000 + 2000;
+      
+      setTimeout(() => {
+        // 通常状態または注目状態のときのみ、まばたきを実行
+        if ((currentEmotion === 'normal' || currentEmotion === 'attention') && !isPurring) {
+          playBlink();
+        }
+        startRandomBlinking(); // 次のまばたきを予約
+      }, delay);
+    }
+
     // --- 初期化処理 ---
     startBtn.addEventListener('click', async () => {
       // フルスクリーン化
@@ -403,11 +415,15 @@
           await globalAudioContext.resume();
         }
 
-        playWakeUpBlink();
+        // 起床時のアクション
+        playBlink();
         playCuteSound();
         setTimeout(() => {
           playCuteSound();
         }, 400);
+
+        // 日常のランダムまばたきループを開始
+        startRandomBlinking();
 
         let battery = null;
         if ('getBattery' in navigator) {
