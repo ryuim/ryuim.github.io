@@ -110,6 +110,8 @@
     let isPlayingSound = false;
     let isPurring = false;
     let lastAttentionTime = 0;
+    let isBlinking = false;
+    let nextBlinkTimer = null;
 
     // --- 設定値の永続化ロジック ---
     const STORAGE_KEY = 'muku_mic_threshold_v2';
@@ -214,8 +216,11 @@
 
       currentEmotion = emotion;
 
-      eyeL.className = `eye eye-${emotion}`;
-      eyeR.className = `eye eye-${emotion}`;
+      // 瞬き中以外なら即座に目のクラスを変更
+      if (!isBlinking) {
+        eyeL.className = `eye eye-${emotion}`;
+        eyeR.className = `eye eye-${emotion}`;
+      }
 
       if (emotion === 'relax') {
         mouth.setAttribute('d', 'M 5 10 Q 12 15 20 10 Q 28 15 35 10');
@@ -349,8 +354,33 @@
     face.addEventListener('touchmove', handlePet, { passive: true });
     face.addEventListener('mousemove', handlePet);
 
+    // --- 自律的な瞬き制御 ---
+    function scheduleNextBlink() {
+      clearTimeout(nextBlinkTimer);
+      const delay = Math.random() * 4000 + 3000; // 3秒〜7秒の間隔
+      nextBlinkTimer = setTimeout(doSingleBlink, delay);
+    }
+
+    function doSingleBlink() {
+      // 笑顔、見開き時、またはすでにパチクリ中の場合はスキップして次をスケジュール
+      if (isBlinking || currentEmotion === 'happy' || currentEmotion === 'attention') {
+        scheduleNextBlink();
+        return;
+      }
+      
+      isBlinking = true;
+      eyeL.className = 'eye eye-blink-closed';
+      eyeR.className = 'eye eye-blink-closed';
+
+      setTimeout(() => {
+        eyeL.className = `eye eye-${currentEmotion}`;
+        eyeR.className = `eye eye-${currentEmotion}`;
+        isBlinking = false;
+        scheduleNextBlink();
+      }, 150);
+    }
+
     // --- 起床時のパチクリ ---
-    let isBlinking = false;
     function playWakeUpBlink() {
       if (isBlinking) return;
       isBlinking = true;
@@ -371,6 +401,7 @@
             eyeL.className = `eye eye-${currentEmotion}`;
             eyeR.className = `eye eye-${currentEmotion}`;
             isBlinking = false;
+            scheduleNextBlink(); // 起床後に自律瞬きのサイクルを開始
           }, 150);
         }
       }, 150);
