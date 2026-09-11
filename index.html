@@ -33,8 +33,9 @@
     .eye-sleepy { width: 48px; height: 4px; margin-top: 24px; opacity: 0.3; background-color: #b45309; }
     .eye-happy { width: 48px; height: 24px; border-radius: 48px 48px 0 0; margin-top: 12px; }
     
-    .eye-blink-closed { width: 48px; height: 4px; margin-top: 22px; transition: all 0.1s !important; }
-    .eye-blink-open { width: 48px; height: 48px; transition: all 0.1s !important; }
+    /* パチクリ感を出すためトランジションを素早く（0.1s -> 0.05s） */
+    .eye-blink-closed { width: 48px; height: 4px; margin-top: 22px; transition: all 0.05s !important; }
+    .eye-blink-open { width: 48px; height: 48px; transition: all 0.05s !important; }
   </style>
 </head>
 <body class="flex flex-col items-center justify-center">
@@ -349,23 +350,23 @@
     face.addEventListener('touchmove', handlePet, { passive: true });
     face.addEventListener('mousemove', handlePet);
 
-    // --- 起床時のパチクリ（ランダム回数1〜3回） ---
+    // --- 起床時のパチクリ（ランダム回数1〜3回、スピードを速く調整） ---
     let isBlinking = false;
     function playWakeUpBlink() {
       if (isBlinking) return;
       isBlinking = true;
       
-      // まばたきの回数を決定
       const r = Math.random();
-      let blinks = 2; // デフォルトは約40%で2回
+      let blinks = 2;
       if (r < 0.15) {
-        blinks = 3; // 15%の確率で3回
+        blinks = 3;
       } else if (r < 0.6) {
-        blinks = 1; // 45%の確率で1回
+        blinks = 1;
       }
-      const targetSteps = blinks * 2; // 開閉のステップ数
+      const targetSteps = blinks * 2;
       
       let count = 0;
+      // インターバルを150msから80msに短縮し、パチクリ感を強調
       const blinkInterval = setInterval(() => {
         if (count % 2 === 0) {
           eyeL.className = 'eye eye-blink-closed';
@@ -382,9 +383,9 @@
             eyeL.className = `eye eye-${currentEmotion}`;
             eyeR.className = `eye eye-${currentEmotion}`;
             isBlinking = false;
-          }, 150);
+          }, 80);
         }
-      }, 150);
+      }, 80);
     }
 
     // --- 初期化処理 ---
