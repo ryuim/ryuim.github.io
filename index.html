@@ -33,8 +33,9 @@
     .eye-sleepy { width: 48px; height: 4px; margin-top: 24px; opacity: 0.3; background-color: #b45309; }
     .eye-happy { width: 48px; height: 24px; border-radius: 48px 48px 0 0; margin-top: 12px; }
     
+    /* まばたき専用の高速トランジションクラス */
     .eye-blink-closed { width: 48px; height: 4px; margin-top: 22px; transition: all 0.05s !important; }
-    .eye-blink-open { width: 48px; height: 48px; transition: all 0.05s !important; }
+    .eye-fast { transition: all 0.05s !important; }
   </style>
 </head>
 <body class="flex flex-col items-center justify-center">
@@ -110,6 +111,7 @@
     let isPlayingSound = false;
     let isPurring = false;
     let lastAttentionTime = 0;
+    let isBlinking = false;
 
     // --- 設定値の永続化ロジック ---
     const STORAGE_KEY = 'muku_mic_threshold_v2';
@@ -141,34 +143,22 @@
     }
 
     window.addEventListener('load', applyThresholdToDOM);
-    
     thresholdSlider.addEventListener('input', (e) => saveThreshold(e.target.value));
     thresholdSlider.addEventListener('change', (e) => saveThreshold(e.target.value));
     thresholdSlider.addEventListener('touchend', (e) => saveThreshold(e.target.value));
-
     initStorage();
 
-    micSettingsBtn.addEventListener('click', () => {
-      settingsModal.style.display = 'flex';
-    });
-    closeModalBtn.addEventListener('click', () => {
-      settingsModal.style.display = 'none';
-    });
+    micSettingsBtn.addEventListener('click', () => { settingsModal.style.display = 'flex'; });
+    closeModalBtn.addEventListener('click', () => { settingsModal.style.display = 'none'; });
 
-    // --- フルスクリーンリクエスト関数 ---
+    // --- フルスクリーン化 ---
     async function requestFullscreen() {
       const doc = document.documentElement;
       try {
-        if (doc.requestFullscreen) {
-          await doc.requestFullscreen();
-        } else if (doc.webkitRequestFullscreen) {
-          await doc.webkitRequestFullscreen();
-        } else if (doc.msRequestFullscreen) {
-          await doc.msRequestFullscreen();
-        }
-      } catch (err) {
-        console.warn("フルスクリーン化できませんでした:", err);
-      }
+        if (doc.requestFullscreen) await doc.requestFullscreen();
+        else if (doc.webkitRequestFullscreen) await doc.webkitRequestFullscreen();
+        else if (doc.msRequestFullscreen) await doc.msRequestFullscreen();
+      } catch (err) {}
     }
 
     // --- 単発の可愛い鳴き声関数 ---
@@ -176,17 +166,14 @@
       if (!globalAudioContext || isPlayingSound) return;
       isPlayingSound = true;
 
-      if (globalAudioContext.state === 'suspended') {
-        await globalAudioContext.resume();
-      }
+      if (globalAudioContext.state === 'suspended') await globalAudioContext.resume();
 
       const audioCtx = globalAudioContext;
       const oscillator = audioCtx.createOscillator();
       const gainNode = audioCtx.createGain();
-
-      oscillator.type = 'sine';
       const now = audioCtx.currentTime;
 
+      oscillator.type = 'sine';
       oscillator.frequency.setValueAtTime(1200, now);
       oscillator.frequency.exponentialRampToValueAtTime(600, now + 0.28);
 
@@ -196,26 +183,25 @@
 
       oscillator.connect(gainNode);
       gainNode.connect(audioCtx.destination);
-
       oscillator.start(now);
       oscillator.stop(now + 0.21);
 
-      setTimeout(() => {
-        isPlayingSound = false;
-      }, 500);
+      setTimeout(() => { isPlayingSound = false; }, 500);
     }
 
+    // --- 表情セット処理（まばたきアニメーションを保護） ---
     function setEmotion(emotion) {
       if (currentEmotion === emotion) return;
       
-      if (emotion === 'attention') {
-        playCuteSound();
-      }
+      if (emotion === 'attention') playCuteSound();
 
       currentEmotion = emotion;
 
-      eyeL.className = `eye eye-${emotion}`;
-      eyeR.className = `eye eye-${emotion}`;
+      // まばたき中にクラスを上書きしてアニメーションを壊さないように保護
+      if (!isBlinking) {
+        eyeL.className = `eye eye-${emotion}`;
+        eyeR.className = `eye eye-${emotion}`;
+      }
 
       if (emotion === 'relax') {
         mouth.setAttribute('d', 'M 5 10 Q 12 15 20 10 Q 28 15 35 10');
@@ -226,10 +212,9 @@
       }
     }
 
-    // --- ゴロゴロ音 ---
+    // --- ぐるる音（省略せず維持） ---
     function startPurr() {
       if (!globalAudioContext || purrOscillator) return;
-      
       isPurring = true;
       const now = globalAudioContext.currentTime;
 
@@ -258,7 +243,6 @@
 
       lfoOscillator.connect(lfoGainNode);
       lfoGainNode.connect(purrGain.gain);
-
       purrOscillator.connect(filter);
       filter.connect(purrGain);
       purrGain.connect(masterGain);
@@ -271,26 +255,24 @@
     function stopPurr() {
       if (masterGain && purrOscillator && lfoGainNode) {
         const now = globalAudioContext.currentTime;
-        const lfoFadeOutTime = 1.5;    
-        const masterFadeOutTime = 1.0; 
-        const totalFadeOutTime = lfoFadeOutTime + masterFadeOutTime;
+        const fade = 1.5;    
         
         lfoGainNode.gain.cancelScheduledValues(now);
         lfoGainNode.gain.setValueAtTime(lfoGainNode.gain.value, now);
-        lfoGainNode.gain.linearRampToValueAtTime(0, now + lfoFadeOutTime);
+        lfoGainNode.gain.linearRampToValueAtTime(0, now + fade);
 
         masterGain.gain.cancelScheduledValues(now);
         masterGain.gain.setValueAtTime(masterGain.gain.value, now); 
-        masterGain.gain.setValueAtTime(masterGain.gain.value, now + lfoFadeOutTime);
-        masterGain.gain.linearRampToValueAtTime(0, now + totalFadeOutTime);
+        masterGain.gain.setValueAtTime(masterGain.gain.value, now + fade);
+        masterGain.gain.linearRampToValueAtTime(0, now + fade + 1.0);
         
         const oldPurrOsc = purrOscillator;
         const oldLfoOsc = lfoOscillator;
         const oldMasterGain = masterGain;
         const oldLfoGain = lfoGainNode;
 
-        oldPurrOsc.stop(now + totalFadeOutTime);
-        if (oldLfoOsc) oldLfoOsc.stop(now + totalFadeOutTime);
+        oldPurrOsc.stop(now + fade + 1.0);
+        if (oldLfoOsc) oldLfoOsc.stop(now + fade + 1.0);
         
         purrOscillator = null;
         lfoOscillator = null;
@@ -303,7 +285,7 @@
           if (oldMasterGain) oldMasterGain.disconnect();
           if (oldLfoGain) oldLfoGain.disconnect();
           isPurring = false;
-        }, (totalFadeOutTime + 0.1) * 1000);
+        }, (fade + 1.1) * 1000);
       } else {
         isPurring = false;
       }
@@ -317,16 +299,12 @@
 
     function handlePet(e) {
       const now = Date.now();
-      
       if (now - lastEventTime < 30) return;
       lastEventTime = now;
-
       moveCount++;
 
-      if (moveCount >= 2 && currentEmotion !== 'happy') {
-        setEmotion('happy');
-      }
-
+      if (moveCount >= 2 && currentEmotion !== 'happy') setEmotion('happy');
+      
       if (moveCount >= 25) {
         if (!hasPlayedPurrSound) {
           playCuteSound();
@@ -337,9 +315,7 @@
 
       clearTimeout(petTimer);
       petTimer = setTimeout(() => {
-        if (currentEmotion === 'happy') {
-          setEmotion('normal');
-        }
+        if (currentEmotion === 'happy') setEmotion('normal');
         stopPurr();
         moveCount = 0;
         hasPlayedPurrSound = false;
@@ -349,51 +325,44 @@
     face.addEventListener('touchmove', handlePet, { passive: true });
     face.addEventListener('mousemove', handlePet);
 
-    // --- まばたきアニメーション ---
-    let isBlinking = false;
-    function playBlink() {
+    // --- 新しい確実なまばたきアニメーション（async/await） ---
+    async function playBlink() {
       if (isBlinking) return;
       isBlinking = true;
       
+      // ランダム回数決定
       const r = Math.random();
-      let blinks = 2;
-      if (r < 0.15) {
-        blinks = 3;
-      } else if (r < 0.6) {
-        blinks = 1;
-      }
-      const targetSteps = blinks * 2;
-      
-      let count = 0;
-      const blinkInterval = setInterval(() => {
-        if (count % 2 === 0) {
-          eyeL.className = 'eye eye-blink-closed';
-          eyeR.className = 'eye eye-blink-closed';
-        } else {
-          eyeL.className = 'eye eye-blink-open';
-          eyeR.className = 'eye eye-blink-open';
-        }
-        count++;
+      let blinks = 2; // 40%で2回
+      if (r < 0.15) blinks = 3; // 15%で3回
+      else if (r < 0.60) blinks = 1; // 45%で1回
+
+      for (let i = 0; i < blinks; i++) {
+        // 目を閉じる（高速）
+        eyeL.className = 'eye eye-blink-closed';
+        eyeR.className = 'eye eye-blink-closed';
+        await new Promise(res => setTimeout(res, 80));
         
-        if (count >= targetSteps) { 
-          clearInterval(blinkInterval);
-          setTimeout(() => {
-            eyeL.className = `eye eye-${currentEmotion}`;
-            eyeR.className = `eye eye-${currentEmotion}`;
-            isBlinking = false;
-          }, 80);
-        }
-      }, 80);
+        // 目を開ける（現在の表情サイズに高速で戻る）
+        eyeL.className = `eye eye-${currentEmotion} eye-fast`;
+        eyeR.className = `eye eye-${currentEmotion} eye-fast`;
+        await new Promise(res => setTimeout(res, 80));
+      }
+      
+      // まばたき完了後、通常のゆったりしたトランジションに戻す
+      if (isBlinking) {
+        eyeL.className = `eye eye-${currentEmotion}`;
+        eyeR.className = `eye eye-${currentEmotion}`;
+        isBlinking = false;
+      }
     }
 
-    // --- ランダムまばたきループ ---
+    // --- ランダムまばたきのループ処理 ---
     function startRandomBlinking() {
-      // 2秒〜6秒のランダムな間隔で次のまばたきをスケジュール
+      // 2秒〜6秒のランダムな間隔
       const delay = Math.random() * 4000 + 2000;
-      
       setTimeout(() => {
-        // 通常状態または注目状態のときのみ、まばたきを実行
-        if ((currentEmotion === 'normal' || currentEmotion === 'attention') && !isPurring) {
+        // 眠い状態（sleepy）以外なら、充電中（relax）や笑顔（happy）でもまばたきする
+        if (currentEmotion !== 'sleepy' && !isPurring) {
           playBlink();
         }
         startRandomBlinking(); // 次のまばたきを予約
@@ -402,40 +371,28 @@
 
     // --- 初期化処理 ---
     startBtn.addEventListener('click', async () => {
-      // フルスクリーン化
       await requestFullscreen();
-
       startBtn.style.display = 'none';
       face.style.display = 'flex';
       micSettingsBtn.style.display = 'flex';
 
       try {
         globalAudioContext = new (window.AudioContext || window.webkitAudioContext)();
-        if (globalAudioContext.state === 'suspended') {
-          await globalAudioContext.resume();
-        }
+        if (globalAudioContext.state === 'suspended') await globalAudioContext.resume();
 
-        // 起床時のアクション
         playBlink();
         playCuteSound();
-        setTimeout(() => {
-          playCuteSound();
-        }, 400);
+        setTimeout(() => { playCuteSound(); }, 400);
 
-        // 日常のランダムまばたきループを開始
+        // まばたきループ起動
         startRandomBlinking();
 
         let battery = null;
         if ('getBattery' in navigator) {
-          try {
-            battery = await navigator.getBattery();
-          } catch(e) {}
+          try { battery = await navigator.getBattery(); } catch(e) {}
         }
 
-        const stream = await navigator.mediaDevices.getUserMedia({ 
-          audio: { echoCancellation: true, noiseSuppression: true } 
-        });
-        
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
         const analyser = globalAudioContext.createAnalyser();
         const microphone = globalAudioContext.createMediaStreamSource(stream);
         
@@ -454,8 +411,8 @@
 
           analyser.getByteFrequencyData(dataArray);
           const volume = Math.max(...dataArray);
-
           const nowTime = Date.now();
+
           if (volume > soundThreshold && (nowTime - lastAttentionTime > 8000)) {
             lastAttentionTime = nowTime;
             setEmotion('attention');
