@@ -161,7 +161,7 @@
       } catch (err) {}
     }
 
-    // --- 単発の可愛い鳴き声関数 ---
+    // --- 可愛い鳴き声関数（4パターンのランダムバリエーション） ---
     async function playCuteSound() {
       if (!globalAudioContext || isPlayingSound) return;
       isPlayingSound = true;
@@ -174,22 +174,45 @@
       const now = audioCtx.currentTime;
 
       oscillator.type = 'sine';
-      oscillator.frequency.setValueAtTime(1200, now);
-      oscillator.frequency.exponentialRampToValueAtTime(600, now + 0.28);
+
+      // 鳴き声のバリエーションをランダムに決定
+      const rand = Math.random();
+      let startFreq, endFreq, duration, rampTime;
+
+      if (rand < 0.25) {
+        // パターンA: 高めで短い「ピュイッ」
+        startFreq = 1800; endFreq = 900; duration = 0.15; rampTime = 0.2;
+      } else if (rand < 0.5) {
+        // パターンB: やや低めで長めの「ミャッ（甘え）」
+        startFreq = 900; endFreq = 500; duration = 0.3; rampTime = 0.35;
+      } else if (rand < 0.75) {
+        // パターンC: すごく短くて高い「チッ」
+        startFreq = 2200; endFreq = 1500; duration = 0.08; rampTime = 0.1;
+      } else {
+        // パターンD: 標準の「キュッ」
+        startFreq = 1200; endFreq = 600; duration = 0.21; rampTime = 0.28;
+      }
+
+      oscillator.frequency.setValueAtTime(startFreq, now);
+      oscillator.frequency.exponentialRampToValueAtTime(endFreq, now + rampTime);
 
       gainNode.gain.setValueAtTime(0, now);
       gainNode.gain.linearRampToValueAtTime(0.3, now + 0.02);
-      gainNode.gain.exponentialRampToValueAtTime(0.0001, now + 0.2);
+      gainNode.gain.exponentialRampToValueAtTime(0.0001, now + duration);
 
       oscillator.connect(gainNode);
       gainNode.connect(audioCtx.destination);
+      
       oscillator.start(now);
-      oscillator.stop(now + 0.21);
+      oscillator.stop(now + duration);
 
-      setTimeout(() => { isPlayingSound = false; }, 500);
+      // 次の音が鳴るまでのクールダウン（鳴き声の長さに応じて調整）
+      setTimeout(() => { 
+        isPlayingSound = false; 
+      }, Math.max(400, duration * 1000 + 100));
     }
 
-    // --- 表情セット処理（まばたきアニメーションを保護） ---
+    // --- 表情セット処理 ---
     function setEmotion(emotion) {
       if (currentEmotion === emotion) return;
       
@@ -197,7 +220,6 @@
 
       currentEmotion = emotion;
 
-      // まばたき中にクラスを上書きしてアニメーションを壊さないように保護
       if (!isBlinking) {
         eyeL.className = `eye eye-${emotion}`;
         eyeR.className = `eye eye-${emotion}`;
@@ -212,7 +234,7 @@
       }
     }
 
-    // --- ぐるる音（省略せず維持） ---
+    // --- ぐるる音 ---
     function startPurr() {
       if (!globalAudioContext || purrOscillator) return;
       isPurring = true;
@@ -325,30 +347,26 @@
     face.addEventListener('touchmove', handlePet, { passive: true });
     face.addEventListener('mousemove', handlePet);
 
-    // --- 新しい確実なまばたきアニメーション（async/await） ---
+    // --- まばたきアニメーション ---
     async function playBlink() {
       if (isBlinking) return;
       isBlinking = true;
       
-      // ランダム回数決定
       const r = Math.random();
       let blinks = 2; // 40%で2回
       if (r < 0.15) blinks = 3; // 15%で3回
       else if (r < 0.60) blinks = 1; // 45%で1回
 
       for (let i = 0; i < blinks; i++) {
-        // 目を閉じる（高速）
         eyeL.className = 'eye eye-blink-closed';
         eyeR.className = 'eye eye-blink-closed';
         await new Promise(res => setTimeout(res, 80));
         
-        // 目を開ける（現在の表情サイズに高速で戻る）
         eyeL.className = `eye eye-${currentEmotion} eye-fast`;
         eyeR.className = `eye eye-${currentEmotion} eye-fast`;
         await new Promise(res => setTimeout(res, 80));
       }
       
-      // まばたき完了後、通常のゆったりしたトランジションに戻す
       if (isBlinking) {
         eyeL.className = `eye eye-${currentEmotion}`;
         eyeR.className = `eye eye-${currentEmotion}`;
@@ -358,14 +376,12 @@
 
     // --- ランダムまばたきのループ処理 ---
     function startRandomBlinking() {
-      // 2秒〜6秒のランダムな間隔
       const delay = Math.random() * 4000 + 2000;
       setTimeout(() => {
-        // 眠い状態（sleepy）以外なら、充電中（relax）や笑顔（happy）でもまばたきする
         if (currentEmotion !== 'sleepy' && !isPurring) {
           playBlink();
         }
-        startRandomBlinking(); // 次のまばたきを予約
+        startRandomBlinking();
       }, delay);
     }
 
@@ -384,7 +400,6 @@
         playCuteSound();
         setTimeout(() => { playCuteSound(); }, 400);
 
-        // まばたきループ起動
         startRandomBlinking();
 
         let battery = null;
