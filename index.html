@@ -161,7 +161,7 @@
       } catch (err) {}
     }
 
-    // --- 可愛い鳴き声関数（4パターンのランダムバリエーション） ---
+    // --- 可愛い鳴き声関数（5パターンのランダムバリエーション） ---
     async function playCuteSound() {
       if (!globalAudioContext || isPlayingSound) return;
       isPlayingSound = true;
@@ -177,24 +177,36 @@
 
       // 鳴き声のバリエーションをランダムに決定
       const rand = Math.random();
-      let startFreq, endFreq, duration, rampTime;
+      let duration;
 
-      if (rand < 0.25) {
+      if (rand < 0.20) {
         // パターンA: 高めで短い「ピュイッ」
-        startFreq = 1800; endFreq = 900; duration = 0.15; rampTime = 0.2;
-      } else if (rand < 0.5) {
+        duration = 0.15;
+        oscillator.frequency.setValueAtTime(1800, now);
+        oscillator.frequency.exponentialRampToValueAtTime(900, now + 0.2);
+      } else if (rand < 0.40) {
         // パターンB: やや低めで長めの「ミャッ（甘え）」
-        startFreq = 900; endFreq = 500; duration = 0.3; rampTime = 0.35;
-      } else if (rand < 0.75) {
+        duration = 0.3;
+        oscillator.frequency.setValueAtTime(900, now);
+        oscillator.frequency.exponentialRampToValueAtTime(500, now + 0.35);
+      } else if (rand < 0.60) {
         // パターンC: すごく短くて高い「チッ」
-        startFreq = 2200; endFreq = 1500; duration = 0.08; rampTime = 0.1;
+        duration = 0.08;
+        oscillator.frequency.setValueAtTime(2200, now);
+        oscillator.frequency.exponentialRampToValueAtTime(1500, now + 0.1);
+      } else if (rand < 0.80) {
+        // パターンD: 【追加】長めの甘え「ミャーーウゥー」
+        duration = 0.7;
+        oscillator.frequency.setValueAtTime(600, now);
+        // 少しピッチが上がってから下がることで「ミャー」の抑揚を表現
+        oscillator.frequency.linearRampToValueAtTime(1000, now + 0.15);
+        oscillator.frequency.exponentialRampToValueAtTime(300, now + 0.7);
       } else {
-        // パターンD: 標準の「キュッ」
-        startFreq = 1200; endFreq = 600; duration = 0.21; rampTime = 0.28;
+        // パターンE: 標準の「キュッ」
+        duration = 0.21;
+        oscillator.frequency.setValueAtTime(1200, now);
+        oscillator.frequency.exponentialRampToValueAtTime(600, now + 0.28);
       }
-
-      oscillator.frequency.setValueAtTime(startFreq, now);
-      oscillator.frequency.exponentialRampToValueAtTime(endFreq, now + rampTime);
 
       gainNode.gain.setValueAtTime(0, now);
       gainNode.gain.linearRampToValueAtTime(0.3, now + 0.02);
